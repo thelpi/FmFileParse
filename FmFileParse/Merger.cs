@@ -294,6 +294,8 @@ internal class Merger(string connectionString, int numberOfSaves, Action<(string
         using var command = connection.CreateCommand();
         command.CommandText = $"DELETE FROM {_playersTable}";
         command.ExecuteNonQuery();
+        command.CommandText = $"ALTER TABLE {_playersTable} AUTO_INCREMENT = 1";
+        command.ExecuteNonQuery();
     }
 
     private static DbType GetDbType(string column)
@@ -353,8 +355,12 @@ internal class Merger(string connectionString, int numberOfSaves, Action<(string
                 }
                 else if (neverNullValues && DateColumns.Contains(col))
                 {
-                    // all the values are date: proceed to average
-                    colsAndVals.Add(col, allValues.Select(Convert.ToDateTime).GetAverageDate());
+                    var days = allValues.Select(x => Convert.ToDateTime(x).Day).GroupBy(x => x).OrderByDescending(x => x.Count());
+                    var months = allValues.Select(x => Convert.ToDateTime(x).Month).GroupBy(x => x).OrderByDescending(x => x.Count());
+                    var years = allValues.Select(x => Convert.ToDateTime(x).Year).GroupBy(x => x).OrderByDescending(x => x.Count());
+
+                    // all the values are date: creates a date from the max occurence of each date part
+                    colsAndVals.Add(col, new DateTime(years.First().Key, months.First().Key, days.First().Key));
                 }
                 else
                 {
