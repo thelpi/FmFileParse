@@ -1,9 +1,4 @@
-﻿using CMScouterFunctions.Converters;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CMScouterFunctions.DataClasses
+﻿namespace FmFileParse.DataClasses
 {
     public class Staff
     {

@@ -1,10 +1,4 @@
-﻿using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace CMScouterFunctions.DataClasses
+﻿namespace FmFileParse.DataClasses
 {
     internal class SaveGameFile
     {

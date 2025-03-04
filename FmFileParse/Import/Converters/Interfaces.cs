@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace CMScouterFunctions.Converters
+namespace FmFileParse.Converters
 {
     internal interface ITupleConverter<out TTarget> where TTarget : class
     {

@@ -1,11 +1,7 @@
-﻿using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using System.Text;
+using FmFileParse.DataClasses;
 
-namespace CMScouterFunctions
+namespace FmFileParse
 {
     internal static class ByteHandler
     {

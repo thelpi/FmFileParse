@@ -1,11 +1,7 @@
-﻿using CMScouterFunctions.Converters;
-using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Linq;
+﻿using FmFileParse.Converters;
+using FmFileParse.DataClasses;
 
-namespace CMScouterFunctions
+namespace FmFileParse
 {
     internal static class DataFileLoaders
     {

@@ -1,13 +1,6 @@
-﻿using CMScouterFunctions.Converters;
-using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using FmFileParse.DataClasses;
 
-namespace CMScouterFunctions
+namespace FmFileParse
 {
 
     public static class SaveGameHandler

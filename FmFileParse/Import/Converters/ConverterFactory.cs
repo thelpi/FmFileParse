@@ -1,11 +1,7 @@
-﻿using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using static CMScouterFunctions.Converters.NationTupleConverter;
+﻿using FmFileParse.DataClasses;
+using static FmFileParse.Converters.NationTupleConverter;
 
-namespace CMScouterFunctions.Converters
+namespace FmFileParse.Converters
 {
     internal static class ConverterIdFactory
     {

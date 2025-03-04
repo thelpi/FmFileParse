@@ -1,13 +1,7 @@
-﻿using CMScouterFunctions.Converters;
-using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using FmFileParse.Converters;
+using FmFileParse.DataClasses;
 
-namespace CMScouterFunctions
+namespace FmFileParse
 {
     internal static class PlayerLoader
     {

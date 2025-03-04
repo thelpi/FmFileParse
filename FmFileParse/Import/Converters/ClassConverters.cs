@@ -1,12 +1,6 @@
-﻿using CMScouterFunctions.DataClasses;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Text;
+﻿using FmFileParse.DataClasses;
 
-namespace CMScouterFunctions.Converters
+namespace FmFileParse.Converters
 {
 
     internal class NationConverter

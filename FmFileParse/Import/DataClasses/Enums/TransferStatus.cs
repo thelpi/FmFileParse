@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
+﻿using System.ComponentModel;
 
-namespace CMScouterFunctions.DataClasses
+namespace FmFileParse.DataClasses
 {
     public enum TransferStatus
     {
