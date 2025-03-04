@@ -3,7 +3,7 @@ using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
-internal class Merger(string connectionString, int numberOfSaves, Action<(string, bool)> sendPlayerCreationReport)
+internal class PlayersMerger(string connectionString, int numberOfSaves, Action<(string, bool)> sendPlayerCreationReport)
 {
     private const decimal _useCurrentValueRate = 2 / 3M;
     private const decimal _minimalFrequenceRate = 1 / 3M;

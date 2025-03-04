@@ -4,7 +4,7 @@ using FmFileParse;
 
 const string ConnString = "Server=localhost;Database=cm_save_explorer;Uid=root;Pwd=;";
 
-var merger = new Merger(ConnString, 12, x => Console.WriteLine(x.Item2 ? $"[PASS] {x.Item1}" : $"[KO] {x.Item1}"));
+var merger = new PlayersMerger(ConnString, 12, x => Console.WriteLine(x.Item2 ? $"[PASS] {x.Item1}" : $"[KO] {x.Item1}"));
 
 merger.ProceedToMerge(true);
 
