@@ -338,12 +338,12 @@ internal class PlayersMerger(string connectionString, int numberOfSaves, Action<
         {
             var allValues = allFilePlayerData.Select(_ => _[col]).ToList();
 
-            var maxOccurenceValue = allValues.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
+            var maxOccurenceValue = allValues.GetRepresentativeValue();
 
-            if (maxOccurenceValue.Count() / (decimal)allFilePlayerData.Count >= _useCurrentValueRate)
+            if (maxOccurenceValue.occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate)
             {
                 // when there's a common value for the column
-                colsAndVals.Add(col, maxOccurenceValue.Key);
+                colsAndVals.Add(col, maxOccurenceValue.value);
             }
             else
             {
@@ -355,17 +355,17 @@ internal class PlayersMerger(string connectionString, int numberOfSaves, Action<
                 }
                 else if (neverNullValues && DateColumns.Contains(col))
                 {
-                    var days = allValues.Select(x => Convert.ToDateTime(x).Day).GroupBy(x => x).OrderByDescending(x => x.Count());
-                    var months = allValues.Select(x => Convert.ToDateTime(x).Month).GroupBy(x => x).OrderByDescending(x => x.Count());
-                    var years = allValues.Select(x => Convert.ToDateTime(x).Year).GroupBy(x => x).OrderByDescending(x => x.Count());
+                    var day = allValues.Select(x => Convert.ToDateTime(x).Day).GetRepresentativeValue();
+                    var month = allValues.Select(x => Convert.ToDateTime(x).Month).GetRepresentativeValue();
+                    var year = allValues.Select(x => Convert.ToDateTime(x).Year).GetRepresentativeValue();
 
                     // all the values are date: creates a date from the max occurence of each date part
-                    colsAndVals.Add(col, new DateTime(years.First().Key, months.First().Key, days.First().Key));
+                    colsAndVals.Add(col, new DateTime(year.value, month.value, day.value));
                 }
                 else
                 {
                     // takes the most populated value
-                    colsAndVals.Add(col, maxOccurenceValue.Key);
+                    colsAndVals.Add(col, maxOccurenceValue.value);
                 }
             }
         }
