@@ -338,12 +338,12 @@ internal class PlayersMerger(string connectionString, int numberOfSaves, Action<
         {
             var allValues = allFilePlayerData.Select(_ => _[col]).ToList();
 
-            var maxOccurenceValue = allValues.GetRepresentativeValue();
+            var (value, occurences) = allValues.GetRepresentativeValue();
 
-            if (maxOccurenceValue.occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate)
+            if (occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate)
             {
                 // when there's a common value for the column
-                colsAndVals.Add(col, maxOccurenceValue.value);
+                colsAndVals.Add(col, value);
             }
             else
             {
@@ -365,7 +365,7 @@ internal class PlayersMerger(string connectionString, int numberOfSaves, Action<
                 else
                 {
                     // takes the most populated value
-                    colsAndVals.Add(col, maxOccurenceValue.value);
+                    colsAndVals.Add(col, value);
                 }
             }
         }
