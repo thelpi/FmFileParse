@@ -2,30 +2,31 @@
 
 using FmFileParse;
 
-// TODO parameter
-const string ConnString = "Server=localhost;Database=cm_save_explorer;Uid=root;Pwd=;";
-
 Console.WriteLine("1 - data importation");
 Console.WriteLine("2 - players merge");
+Console.WriteLine("3 - data importation the players merge");
 Console.WriteLine("Other - exit");
+
 var rawChoice = Console.ReadLine();
 
-if (!int.TryParse(rawChoice, out var choice) || (choice != 1 && choice != 2))
+if (!int.TryParse(rawChoice, out var choice) || (choice != 1 && choice != 2 && choice != 3))
 {
-    Environment.Exit(0);
+    Console.WriteLine("No action to do; Press any key to close.");
+    Console.ReadKey();
+    return;
 }
 
-if (choice == 1)
+var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, $"*.{Settings.SaveFileExtension}");
+
+if (choice == 1 || choice == 3)
 {
-    // TODO parameters
-    var saveFiles = Directory.GetFiles("S:\\Share_VM\\saves\\test", "*.sav");
-    var csvFiles = Directory.GetFiles("S:\\Share_VM\\extract", "*.csv");
+    var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
 
     Console.WriteLine("Reimport countries? y/n");
     rawChoice = Console.ReadLine()?.ToLowerInvariant();
     var reimportCountries = rawChoice == "y";
 
-    var importer = new DataImporter(ConnString);
+    var importer = new DataImporter();
 
     importer.ClearAllData(reimportCountries);
     if (reimportCountries)
@@ -34,11 +35,22 @@ if (choice == 1)
     }
     importer.ImportCompetitions(saveFiles[0]);
     importer.ImportClubs(saveFiles[0]);
-    importer.ImportPlayers(saveFiles, csvFiles);
+    var notCreatedPlayers = importer.ImportPlayers(saveFiles, csvFiles, x =>
+        Console.WriteLine($"Player {x} created."));
+
+    if (notCreatedPlayers.Count > 0)
+    {
+        Console.WriteLine($"{notCreatedPlayers.Count} players has not been created:");
+        foreach (var p in notCreatedPlayers)
+        {
+            Console.WriteLine(p);
+        }
+    }
 }
-else
+
+if (choice == 2 || choice == 3)
 {
-    var merger = new PlayersMerger(ConnString, 12, x =>
+    var merger = new PlayersMerger(saveFiles.Length, x =>
         Console.WriteLine(x.Item2 ? $"[Created] {x.Item1}" : $"[Ignored] {x.Item1}"));
 
     merger.ProceedToMerge(true);

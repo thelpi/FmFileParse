@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
-internal class DataImporter(string connectionString)
+internal class DataImporter()
 {
     private static readonly string[] SqlColumns =
     [
@@ -55,7 +55,7 @@ internal class DataImporter(string connectionString)
     private const int MaxAttributeRate = 20;
 
     private readonly Func<MySqlConnection> _getConnection =
-        () => new MySqlConnection(connectionString);
+        () => new MySqlConnection(Settings.ConnString);
 
     public void ClearAllData(bool reimportCountries)
     {
@@ -163,7 +163,10 @@ internal class DataImporter(string connectionString)
         }
     }
 
-    public IReadOnlyList<(string, string, Player)> ImportPlayers(string[] saveFilePaths, string[] extractFilePaths)
+    public IReadOnlyList<(string, string, Player)> ImportPlayers(
+        string[] saveFilePaths,
+        string[] extractFilePaths,
+        Action<string> sendPlayerCreationReport)
     {
         if (saveFilePaths.Length != extractFilePaths.Length)
         {
@@ -334,6 +337,8 @@ internal class DataImporter(string connectionString)
                 command.Parameters["@work_rate"].Value = csvPlayer[OrderedCsvColumns.IndexOf("work_rate")];
 
                 command.ExecuteNonQuery();
+
+                sendPlayerCreationReport(keyParts[0]);
             }
         }
 
