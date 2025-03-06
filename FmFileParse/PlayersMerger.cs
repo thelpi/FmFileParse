@@ -7,59 +7,12 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
 {
     private const decimal _useCurrentValueRate = 2 / 3M;
     private const decimal _minimalFrequenceRate = 1 / 3M;
-    private const string _occurencesColumn = "occurences";
-    private const string _playersTable = "players";
-    private const string _unmergedPlayersTable = "unmerged_players";
 
     private readonly int _numberOfSaves = numberOfSaves;
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
     private readonly Action<(string playerName, bool isCreated)> _sendPlayerCreationReport = sendPlayerCreationReport;
 
-    private static readonly IReadOnlyCollection<string> PlayersTableColumns =
-    [
-        // technical
-        _occurencesColumn,
-        // intrinsic
-        "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
-        // country related
-        "country_id", "secondary_country_id", "caps", "international_goals",
-        // potential & reputation
-        "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
-        // club related
-        "club_id", "value", "contract_expiration", "contract_type", "wage", "transfer_status", "squad_status",
-        // release fee
-        "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
-        // positions
-        "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
-        "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
-        // sides
-        "side_left", "side_right", "side_center",
-        // attributes
-        "acceleration", "adaptability", "aggression", "agility", "ambition", "anticipation",
-        "balance", "bravery", "consistency", "corners", "creativity", "crossing",
-        "decisions", "determination", "dirtiness", "dribbling", "finishing", "flair",
-        "handling", "heading", "important_matches", "influence", "injury_proneness", "jumping",
-        "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones",
-        "pace", "passing", "penalties", "positioning", "pressure", "professionalism", "reflexes",
-        "set_pieces", "sportsmanship", "stamina", "strength",
-        "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
-    ];
-
-    // columns from 'unmerged_players' not imported in 'players'
-    private static readonly IReadOnlyCollection<string> IgnoredFromSourceColumns =
-    [
-        "id", "filename"
-    ];
-
-    private static readonly IReadOnlyCollection<string> StringColumns =
-    [
-        "first_name", "last_name", "common_name", "contract_type", "transfer_status", "squad_status"
-    ];
-
-    private static readonly IReadOnlyCollection<string> DateColumns =
-    [
-        "date_of_birth", "contract_expiration"
-    ];
+    private static readonly string[] SqlColumns = ["occurences", .. Settings.CommonSqlColumns];
 
     public void ProceedToMerge(bool resetAllData)
     {
@@ -150,7 +103,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             $"AND {"club_id".GetSqlEqualNull()} " +
             "AND date_of_birth = @date_of_birth";
@@ -169,7 +122,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             $"AND {"club_id".GetSqlEqualNull()}";
         command.SetParameter("first_name", DbType.String);
@@ -186,7 +139,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT first_name, last_name, common_name, club_id, date_of_birth " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             "GROUP BY club_id, date_of_birth";
         command.SetParameter("first_name", DbType.String);
@@ -202,7 +155,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT first_name, last_name, common_name, club_id " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             "GROUP BY club_id";
         command.SetParameter("first_name", DbType.String);
@@ -218,7 +171,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             "GROUP BY filename, club_id " +
             "ORDER BY COUNT(*) DESC";
@@ -235,7 +188,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT DISTINCT common_name, last_name, first_name " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             "ORDER BY common_name, last_name, first_name";
         command.Prepare();
         return command;
@@ -247,7 +200,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = $"SELECT COUNT(*) " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
             $"GROUP BY filename " +
             $"ORDER BY COUNT(*) DESC";
@@ -264,7 +217,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         connection.Open();
         var command = connection.CreateCommand();
         command.CommandText = $"SELECT * " +
-            $"FROM {_unmergedPlayersTable} " +
+            "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()}";
         command.SetParameter("first_name", DbType.String);
         command.SetParameter("last_name", DbType.String);
@@ -278,10 +231,10 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         var connection = _getConnection();
         connection.Open();
         var command = connection.CreateCommand();
-        command.CommandText = PlayersTableColumns.GetInsertQuery(_playersTable);
-        foreach (var c in PlayersTableColumns)
+        command.CommandText = SqlColumns.GetInsertQuery("players");
+        foreach (var c in SqlColumns)
         {
-            command.SetParameter(c, GetDbType(c));
+            command.SetParameter(c, Settings.GetDbType(c));
         }
         command.Prepare();
         return command;
@@ -292,19 +245,10 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = $"DELETE FROM {_playersTable}";
+        command.CommandText = "DELETE FROM players";
         command.ExecuteNonQuery();
-        command.CommandText = $"ALTER TABLE {_playersTable} AUTO_INCREMENT = 1";
+        command.CommandText = $"ALTER TABLE players AUTO_INCREMENT = 1";
         command.ExecuteNonQuery();
-    }
-
-    private static DbType GetDbType(string column)
-    {
-        return StringColumns.Contains(column)
-            ? DbType.String
-            : (DateColumns.Contains(column)
-                ? DbType.Date
-                : DbType.Int32);
     }
 
     private void CreatePlayerFromUnmergedPlayers(
@@ -318,7 +262,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
             var singleFilePlayerData = new Dictionary<string, object>(playerInfoReader.FieldCount);
             for (var i = 0; i < playerInfoReader.FieldCount; i++)
             {
-                if (!IgnoredFromSourceColumns.Contains(playerInfoReader.GetName(i)))
+                if (!Settings.UnmergedOnlyColumns.Contains(playerInfoReader.GetName(i)))
                 {
                     singleFilePlayerData.Add(playerInfoReader.GetName(i), playerInfoReader[i]);
                 }
@@ -333,7 +277,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
             return;
         }
 
-        var colsAndVals = new Dictionary<string, object>(PlayersTableColumns.Count + 2);
+        var colsAndVals = new Dictionary<string, object>(SqlColumns.Length + 2);
         foreach (var col in allFilePlayerData[0].Keys)
         {
             var allValues = allFilePlayerData.Select(_ => _[col]).ToList();
@@ -353,7 +297,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
                     // all the values are integer: proceed to average
                     colsAndVals.Add(col, Convert.ToInt32(Math.Round(allValues.Select(Convert.ToInt32).Average())));
                 }
-                else if (neverNullValues && DateColumns.Contains(col))
+                else if (neverNullValues && Settings.DateColumns.Contains(col))
                 {
                     var day = allValues.Select(x => Convert.ToDateTime(x).Day).GetRepresentativeValue();
                     var month = allValues.Select(x => Convert.ToDateTime(x).Month).GetRepresentativeValue();
@@ -370,7 +314,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
             }
         }
 
-        colsAndVals.Add(_occurencesColumn, allFilePlayerData.Count);
+        colsAndVals.Add("occurences", allFilePlayerData.Count);
 
         foreach (var c in colsAndVals.Keys)
         {

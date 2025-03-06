@@ -7,20 +7,7 @@ namespace FmFileParse;
 
 internal class DataImporter()
 {
-    private static readonly string[] SqlColumns =
-    [
-        "id", "filename", "first_name", "last_name", "common_name", "date_of_birth", "country_id", "secondary_country_id",
-        "caps", "international_goals", "right_foot", "left_foot", "ability", "potential_ability", "home_reputation",
-        "current_reputation", "world_reputation", "club_id", "value", "contract_expiration", "contract_type", "wage",
-        "transfer_status", "squad_status", "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
-        "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder", "pos_attacking_midfielder",
-        "pos_forward", "pos_wingback", "pos_free_role", "side_left", "side_right", "side_center", "acceleration", "adaptability",
-        "aggression", "agility", "ambition", "anticipation", "balance", "bravery", "consistency", "corners", "creativity", "crossing",
-        "decisions", "determination", "dirtiness", "dribbling", "finishing", "flair", "handling", "heading", "important_matches",
-        "influence", "injury_proneness", "jumping", "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones",
-        "pace", "passing", "penalties", "positioning", "pressure", "professionalism", "reflexes", "set_pieces", "sportsmanship",
-        "stamina", "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
-    ];
+    private static readonly string[] SqlColumns = [.. Settings.UnmergedOnlyColumns, .. Settings.CommonSqlColumns];
 
     private static readonly string[] OrderedCsvColumns =
     [
@@ -29,21 +16,11 @@ internal class DataImporter()
         "club_reputation", "consistency", "contract_expiration", "contract_type", "corners", "creativity", "crossing",
         "current_reputation", "date_of_birth", "decisions", "determination", "dirtiness", "dribbling", "finishing", "flair",
         "handling", "heading", "home_reputation", "important_matches", "influence", "injury_proneness", "international_goals",
-        "jumping", "left_foot", "long_shots", "loyality", "manager_job_rel", "marking", "min_fee_rel", "natural_fitness",
+        "jumping", "left_foot", "long_shots", "loyalty", "manager_job_rel", "marking", "min_fee_rel", "natural_fitness",
         "non_play_rel", "non_promotion_rel", "off_the_ball", "one_on_ones", "pace", "passing", "penalties", "positioning",
         "pressure", "professionalism", "reflexes", "relegation_rel", "right_foot", "set_pieces", "sportsmanship", "squad_status",
         "stamina", "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "transfer_status", "versatility",
         "wage", "work_rate", "world_reputation"
-    ];
-
-    private static readonly string[] StringColumns =
-    [
-        "filename", "first_name", "last_name", "common_name", "contract_type", "transfer_status", "squad_status"
-    ];
-
-    private static readonly string[] DateColumns =
-    [
-        "date_of_birth", "contract_expiration"
     ];
 
     private static readonly string[] CsvRowsSeparators = ["\r\n", "\r", "\n"];
@@ -51,8 +28,6 @@ internal class DataImporter()
     private static readonly Encoding CsvFileEncoding = Encoding.Latin1;
 
     private const char CsvColumnsSeparator = ';';
-
-    private const int MaxAttributeRate = 20;
 
     private readonly Func<MySqlConnection> _getConnection =
         () => new MySqlConnection(Settings.ConnString);
@@ -180,12 +155,7 @@ internal class DataImporter()
 
         foreach (var c in SqlColumns)
         {
-            var type = StringColumns.Contains(c)
-                ? DbType.String
-                : (DateColumns.Contains(c)
-                    ? DbType.Date
-                    : DbType.Int32);
-            command.SetParameter(c, type);
+            command.SetParameter(c, Settings.GetDbType(c));
         }
 
         command.Prepare();
@@ -287,54 +257,12 @@ internal class DataImporter()
                     : csvPlayer[OrderedCsvColumns.IndexOf("contract_type")];
                 command.Parameters["@international_goals"].Value = csvPlayer[OrderedCsvColumns.IndexOf("international_goals")];
 
-                command.Parameters["@acceleration"].Value = csvPlayer[OrderedCsvColumns.IndexOf("acceleration")];
-                command.Parameters["@adaptability"].Value = csvPlayer[OrderedCsvColumns.IndexOf("adaptability")];
-                command.Parameters["@aggression"].Value = csvPlayer[OrderedCsvColumns.IndexOf("aggression")];
-                command.Parameters["@agility"].Value = csvPlayer[OrderedCsvColumns.IndexOf("agility")];
-                command.Parameters["@ambition"].Value = csvPlayer[OrderedCsvColumns.IndexOf("ambition")];
-                command.Parameters["@anticipation"].Value = csvPlayer[OrderedCsvColumns.IndexOf("anticipation")];
-                command.Parameters["@balance"].Value = csvPlayer[OrderedCsvColumns.IndexOf("balance")];
-                command.Parameters["@bravery"].Value = csvPlayer[OrderedCsvColumns.IndexOf("bravery")];
-                command.Parameters["@consistency"].Value = csvPlayer[OrderedCsvColumns.IndexOf("consistency")];
-                command.Parameters["@corners"].Value = csvPlayer[OrderedCsvColumns.IndexOf("corners")];
-                command.Parameters["@creativity"].Value = csvPlayer[OrderedCsvColumns.IndexOf("creativity")];
-                command.Parameters["@crossing"].Value = csvPlayer[OrderedCsvColumns.IndexOf("crossing")];
-                command.Parameters["@decisions"].Value = csvPlayer[OrderedCsvColumns.IndexOf("decisions")];
-                command.Parameters["@determination"].Value = csvPlayer[OrderedCsvColumns.IndexOf("determination")];
-                command.Parameters["@dirtiness"].Value = csvPlayer[OrderedCsvColumns.IndexOf("dirtiness")];
-                command.Parameters["@dribbling"].Value = csvPlayer[OrderedCsvColumns.IndexOf("dribbling")];
-                command.Parameters["@finishing"].Value = csvPlayer[OrderedCsvColumns.IndexOf("finishing")];
-                command.Parameters["@flair"].Value = csvPlayer[OrderedCsvColumns.IndexOf("flair")];
-                command.Parameters["@handling"].Value = csvPlayer[OrderedCsvColumns.IndexOf("handling")];
-                command.Parameters["@heading"].Value = csvPlayer[OrderedCsvColumns.IndexOf("heading")];
-                command.Parameters["@important_matches"].Value = csvPlayer[OrderedCsvColumns.IndexOf("important_matches")];
-                command.Parameters["@influence"].Value = csvPlayer[OrderedCsvColumns.IndexOf("influence")];
-                command.Parameters["@injury_proneness"].Value = MaxAttributeRate - int.Parse(csvPlayer[OrderedCsvColumns.IndexOf("injury_proneness")]);
-                command.Parameters["@jumping"].Value = csvPlayer[OrderedCsvColumns.IndexOf("jumping")];
-                command.Parameters["@long_shots"].Value = csvPlayer[OrderedCsvColumns.IndexOf("long_shots")];
-                command.Parameters["@loyalty"].Value = csvPlayer[OrderedCsvColumns.IndexOf("loyality")];
-                command.Parameters["@marking"].Value = csvPlayer[OrderedCsvColumns.IndexOf("marking")];
-                command.Parameters["@natural_fitness"].Value = csvPlayer[OrderedCsvColumns.IndexOf("natural_fitness")];
-                command.Parameters["@off_the_ball"].Value = csvPlayer[OrderedCsvColumns.IndexOf("off_the_ball")];
-                command.Parameters["@one_on_ones"].Value = csvPlayer[OrderedCsvColumns.IndexOf("one_on_ones")];
-                command.Parameters["@pace"].Value = csvPlayer[OrderedCsvColumns.IndexOf("pace")];
-                command.Parameters["@passing"].Value = csvPlayer[OrderedCsvColumns.IndexOf("passing")];
-                command.Parameters["@penalties"].Value = csvPlayer[OrderedCsvColumns.IndexOf("penalties")];
-                command.Parameters["@positioning"].Value = csvPlayer[OrderedCsvColumns.IndexOf("positioning")];
-                command.Parameters["@pressure"].Value = csvPlayer[OrderedCsvColumns.IndexOf("pressure")];
-                command.Parameters["@professionalism"].Value = csvPlayer[OrderedCsvColumns.IndexOf("professionalism")];
-                command.Parameters["@reflexes"].Value = csvPlayer[OrderedCsvColumns.IndexOf("reflexes")];
-                command.Parameters["@set_pieces"].Value = csvPlayer[OrderedCsvColumns.IndexOf("set_pieces")];
-                command.Parameters["@sportsmanship"].Value = csvPlayer[OrderedCsvColumns.IndexOf("sportsmanship")];
-                command.Parameters["@stamina"].Value = csvPlayer[OrderedCsvColumns.IndexOf("stamina")];
-                command.Parameters["@strength"].Value = csvPlayer[OrderedCsvColumns.IndexOf("strength")];
-                command.Parameters["@tackling"].Value = csvPlayer[OrderedCsvColumns.IndexOf("tackling")];
-                command.Parameters["@teamwork"].Value = csvPlayer[OrderedCsvColumns.IndexOf("teamwork")];
-                command.Parameters["@technique"].Value = csvPlayer[OrderedCsvColumns.IndexOf("technique")];
-                command.Parameters["@temperament"].Value = csvPlayer[OrderedCsvColumns.IndexOf("temperament")];
-                command.Parameters["@throw_ins"].Value = csvPlayer[OrderedCsvColumns.IndexOf("throw_ins")];
-                command.Parameters["@versatility"].Value = csvPlayer[OrderedCsvColumns.IndexOf("versatility")];
-                command.Parameters["@work_rate"].Value = csvPlayer[OrderedCsvColumns.IndexOf("work_rate")];
+                foreach (var attributeName in Settings.AttributeColumns)
+                {
+                    command.Parameters[$"@{attributeName}"].Value = attributeName == "injury_proneness"
+                        ? 20 - int.Parse(csvPlayer[OrderedCsvColumns.IndexOf("injury_proneness")])
+                        : csvPlayer[OrderedCsvColumns.IndexOf(attributeName)];
+                }
 
                 command.ExecuteNonQuery();
 
