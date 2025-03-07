@@ -38,7 +38,7 @@ namespace FmFileParse.Converters
             staff.NationId = ByteHandler.GetIntFromBytes(source, 26);
             staff.SecondaryNationId = ByteHandler.GetIntFromBytes(source, 30);
             staff.InternationalCaps = ByteHandler.GetByteFromBytes(source, 24);
-            staff.InternationalGoals = ByteHandler.GetByteFromBytes(source, 25);
+            staff.InternationalGoals = ByteHandler.GetByteFromBytes(source, 35);
             staff.ContractExpiryDate = ByteHandler.GetDateFromBytes(source, 70);
             staff.Wage = ByteHandler.GetIntFromBytes(source, 78);
             staff.Value = ByteHandler.GetIntFromBytes(source, 82);
@@ -91,7 +91,7 @@ namespace FmFileParse.Converters
             comp.LongName = ByteHandler.GetStringFromBytes(source, 4, 50);
             comp.Name = ByteHandler.GetStringFromBytes(source, 56, 25);
             //comp.Reputation = ByteHandler.GetByteFromBytes(source, 82);
-            comp.NationId = ByteHandler.GetIntFromBytes(source, 92);
+            comp.NationId = ByteHandler.GetIntFromBytes(source, 93);
             comp.Abbreviation = ByteHandler.GetStringFromBytes(source, 83, 3);
 
             return comp;

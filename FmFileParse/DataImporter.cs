@@ -100,8 +100,9 @@ internal class DataImporter()
             command.Parameters["@name"].Value = data.ClubComps[key].Name;
             command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
             command.Parameters["@acronym"].Value = data.ClubComps[key].Abbreviation;
-            // TODO: get proper country
-            command.Parameters["@country_id"].Value = DBNull.Value; // data.ClubComps[key].NationId >= 0 ? data.ClubComps[key].NationId 
+            command.Parameters["@country_id"].Value = data.ClubComps[key].NationId >= 0
+                ? data.ClubComps[key].NationId
+                : DBNull.Value;
             command.ExecuteNonQuery();
         }
     }
@@ -130,10 +131,13 @@ internal class DataImporter()
             command.Parameters["@id"].Value = data.Clubs[key].ClubId;
             command.Parameters["@name"].Value = data.Clubs[key].Name;
             command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
-            command.Parameters["@country_id"].Value = data.Clubs[key].NationId < 0 ? DBNull.Value : data.Clubs[key].NationId;
+            command.Parameters["@country_id"].Value = data.Clubs[key].NationId < 0
+                ? DBNull.Value
+                : data.Clubs[key].NationId;
             command.Parameters["@reputation"].Value = data.Clubs[key].Reputation;
-            // TODO: get division
-            command.Parameters["@division_id"].Value = DBNull.Value; // data.ClubComps[key].DivisionId >= 0 ? data.ClubComps[key].DivisionId
+            command.Parameters["@division_id"].Value = data.Clubs[key].DivisionId >= 0
+                ? data.Clubs[key].DivisionId
+                : DBNull.Value;
             command.ExecuteNonQuery();
         }
     }
@@ -204,6 +208,7 @@ internal class DataImporter()
                     ? player._staff.SecondaryNationId
                     : DBNull.Value;
                 command.Parameters["@caps"].Value = player._staff.InternationalCaps;
+                command.Parameters["@international_goals"].Value = player._staff.InternationalGoals;
                 command.Parameters["@right_foot"].Value = player._player.RightFoot;
                 command.Parameters["@left_foot"].Value = player._player.LeftFoot;
                 command.Parameters["@ability"].Value = player._player.CurrentAbility;
@@ -251,11 +256,10 @@ internal class DataImporter()
 
                 // from extract file
 
-                // TODO get from source data for this two
+                // TODO get from source
                 command.Parameters["@contract_type"].Value = string.IsNullOrWhiteSpace(csvPlayer[OrderedCsvColumns.IndexOf("contract_type")])
                     ? DBNull.Value
                     : csvPlayer[OrderedCsvColumns.IndexOf("contract_type")];
-                command.Parameters["@international_goals"].Value = csvPlayer[OrderedCsvColumns.IndexOf("international_goals")];
 
                 foreach (var attributeName in Settings.AttributeColumns)
                 {

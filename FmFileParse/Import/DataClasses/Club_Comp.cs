@@ -14,7 +14,7 @@
         [DataFileInfo(83, 3)]
         public string Abbreviation { get; set; }
 
-        [DataFileInfo(92)]
+        [DataFileInfo(93)]
         public int NationId { get; set; }
 
     }
