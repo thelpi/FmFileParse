@@ -102,7 +102,7 @@ internal class DataImporter(Action<string> reportProgress)
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        // TODO: confederation, is_eu
+        // TODO: confederation, is_eu...
         command.CommandText = "INSERT INTO countries (name, is_eu, confederation_id) " +
             "VALUES (@name, 0, 1)";
         command.SetParameter("name", DbType.String);
@@ -140,6 +140,15 @@ internal class DataImporter(Action<string> reportProgress)
             }
             iFile++;
         }
+
+        // TODO ...then remove this section
+        command.CommandText = "UPDATE countries SET is_eu = " +
+            "(SELECT c.is_eu FROM countries_backup AS c WHERE c.name = countries.name)";
+        command.ExecuteNonQuery();
+
+        command.CommandText = "UPDATE countries SET confederation_id = " +
+            "(SELECT c.confederation_id FROM countries_backup AS c WHERE c.name = countries.name)";
+        command.ExecuteNonQuery();
 
         return countries;
     }
