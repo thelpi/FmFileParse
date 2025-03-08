@@ -1,4 +1,5 @@
 ﻿using FmFileParse.DataClasses;
+using FmFileParse.Models;
 
 namespace FmFileParse.Converters;
 
@@ -20,7 +21,7 @@ internal class StaffConverter
     {
         var staff = new Staff();
 
-        staff.StaffId = ByteHandler.GetIntFromBytes(source, 0);
+        staff.Id = ByteHandler.GetIntFromBytes(source, 0);
         staff.StaffPlayerId = ByteHandler.GetIntFromBytes(source, 97);
         staff.FirstNameId = ByteHandler.GetIntFromBytes(source, 4);
         staff.SecondNameId = ByteHandler.GetIntFromBytes(source, 8);

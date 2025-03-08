@@ -1,4 +1,4 @@
-﻿using FmFileParse.DataClasses;
+﻿using FmFileParse.Models;
 using static FmFileParse.Converters.NationTupleConverter;
 
 namespace FmFileParse.Converters

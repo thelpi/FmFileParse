@@ -1,6 +1,6 @@
-﻿using FmFileParse.Import.DataClasses;
+﻿using FmFileParse.DataClasses;
 
-namespace FmFileParse.DataClasses;
+namespace FmFileParse.Models;
 
 public class ClubComp : BaseData
 {

@@ -1,6 +1,6 @@
 ﻿using FmFileParse.DataClasses;
 
-namespace FmFileParse.Import.DataClasses;
+namespace FmFileParse.Models;
 
 public abstract class BaseData
 {

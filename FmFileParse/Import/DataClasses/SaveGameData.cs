@@ -1,4 +1,6 @@
-﻿namespace FmFileParse.DataClasses
+﻿using FmFileParse.Models;
+
+namespace FmFileParse.DataClasses
 {
     public class SaveGameData
     {

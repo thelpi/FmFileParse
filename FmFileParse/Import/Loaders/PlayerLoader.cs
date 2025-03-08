@@ -1,5 +1,6 @@
 ﻿using FmFileParse.Converters;
 using FmFileParse.DataClasses;
+using FmFileParse.Models;
 
 namespace FmFileParse
 {
@@ -51,9 +52,9 @@ namespace FmFileParse
                 {
                     var staff = staffDic[player.PlayerId];
                     Contract contract = null;
-                    if (contracts.Keys.Contains(staff.StaffId))
+                    if (contracts.Keys.Contains(staff.Id))
                     {
-                        contract = contracts[staff.StaffId];
+                        contract = contracts[staff.Id];
                     }
 
                     yield return new Player(player, staff, contract);

@@ -1,4 +1,4 @@
-﻿namespace FmFileParse.DataClasses;
+﻿namespace FmFileParse.Models;
 
 public class Contract
 {

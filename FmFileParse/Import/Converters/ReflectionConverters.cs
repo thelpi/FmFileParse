@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using FmFileParse.DataClasses;
+using FmFileParse.Models;
 
 namespace FmFileParse.Converters;
 

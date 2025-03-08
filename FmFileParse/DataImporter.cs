@@ -325,7 +325,7 @@ internal class DataImporter(Action<string> reportProgress)
                     continue;
                 }
 
-                command.Parameters["@id"].Value = player._staff.StaffId;
+                command.Parameters["@id"].Value = player._staff.Id;
                 command.Parameters["@filename"].Value = fileName;
                 command.Parameters["@first_name"].Value = firstName;
                 command.Parameters["@last_name"].Value = lastName;
