@@ -3,14 +3,14 @@ using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
-internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlayerCreationReport)
+internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 {
     private const decimal _useCurrentValueRate = 2 / 3M;
     private const decimal _minimalFrequenceRate = 1 / 3M;
 
     private readonly int _numberOfSaves = numberOfSaves;
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
-    private readonly Action<(string playerName, bool isCreated)> _sendPlayerCreationReport = sendPlayerCreationReport;
+    private readonly Action<string> _reportProgress = reportProgress;
 
     private static readonly string[] SqlColumns = ["occurences", .. Settings.CommonSqlColumns];
 
@@ -270,7 +270,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         // there's not enough data across all files for the player
         if (allFilePlayerData.Count / (decimal)_numberOfSaves < _minimalFrequenceRate)
         {
-            _sendPlayerCreationReport((playerName.ToString(), false));
+            _reportProgress($"The player '{playerName}' has not enough data to be merged.");
             return;
         }
 
@@ -320,7 +320,7 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
         }
         insertPlayerCommand.ExecuteNonQuery();
 
-        _sendPlayerCreationReport((playerName.ToString(), true));
+        _reportProgress($"The player '{playerName}' has been merged.");
     }
 
     private static string GetPlayerNameSqlEquality()

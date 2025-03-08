@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
-internal class DataImporter
+internal class DataImporter(Action<string> reportProgress)
 {
     private static readonly string[] SqlColumns = [.. Settings.UnmergedOnlyColumns, .. Settings.CommonSqlColumns];
 
@@ -38,32 +38,30 @@ internal class DataImporter
     private readonly Func<MySqlConnection> _getConnection =
         () => new MySqlConnection(Settings.ConnString);
 
-    private readonly Dictionary<string, SaveGameData> _loadedSaveData;
+    private readonly Dictionary<string, SaveGameData> _loadedSaveData = [];
+    private readonly Action<string> _reportProgress = reportProgress;
 
-    public DataImporter()
-    {
-        _loadedSaveData = [];
-    }
-
-    public IReadOnlyList<(string, string, Player)> ProceedToImport(
+    public void ProceedToImport(
         string[] saveFilePaths,
-        string[] extractFilePaths,
-        Action<string> sendPlayerCreationReport)
+        string[] extractFilePaths)
     {
         if (saveFilePaths.Length != extractFilePaths.Length)
         {
-            throw new ArgumentException("Path lists should have the same cardinal.", nameof(extractFilePaths));
+            _reportProgress("Path lists should have the same cardinal; process interrupted.");
+            return;
         }
 
         ClearAllData();
         var countries = ImportCountries(saveFilePaths);
         var competitions = ImportCompetitions(saveFilePaths, countries);
         var clubs = ImportClubs(saveFilePaths, countries, competitions);
-        return ImportPlayers(saveFilePaths, extractFilePaths, sendPlayerCreationReport, countries, clubs);
+        ImportPlayers(saveFilePaths, extractFilePaths, countries, clubs);
     }
 
     private void ClearAllData()
     {
+        _reportProgress("Cleaning previous data starts...");
+
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -97,6 +95,8 @@ internal class DataImporter
     private List<SaveIdMapper> ImportCountries(
         string[] saveFilePaths)
     {
+        _reportProgress("Countries importation starts...");
+
         var countries = new List<SaveIdMapper>(250);
 
         using var connection = _getConnection();
@@ -134,6 +134,8 @@ internal class DataImporter
                             { iFile, data.Nations[key].Id }
                         }
                     });
+
+                    _reportProgress($"Country '{data.Nations[key].Name}' has been created.");
                 }
             }
             iFile++;
@@ -146,6 +148,8 @@ internal class DataImporter
         string[] saveFilePaths,
         List<SaveIdMapper> countriesMapping)
     {
+        _reportProgress("Competitions importation starts...");
+
         var competitions = new List<SaveIdMapper>(500);
 
         using var connection = _getConnection();
@@ -194,6 +198,8 @@ internal class DataImporter
                             { iFile, data.ClubComps[key].Id }
                         }
                     });
+
+                    _reportProgress($"Competition '{data.ClubComps[key].Name}' has been created.");
                 }
             }
             iFile++;
@@ -207,6 +213,8 @@ internal class DataImporter
         List<SaveIdMapper> countriesMapping,
         List<SaveIdMapper> competitionsMapping)
     {
+        _reportProgress("Clubs importation starts...");
+
         var clubs = new List<SaveIdMapper>(1000);
 
         using var connection = _getConnection();
@@ -261,6 +269,8 @@ internal class DataImporter
                             { iFile, data.Clubs[key].ClubId }
                         }
                     });
+
+                    _reportProgress($"Club '{data.Clubs[key].Name}' has been created.");
                 }
             }
 
@@ -270,13 +280,14 @@ internal class DataImporter
         return clubs;
     }
 
-    private List<(string, string, Player)> ImportPlayers(
+    private void ImportPlayers(
         string[] saveFilePaths,
         string[] extractFilePaths,
-        Action<string> sendPlayerCreationReport,
         List<SaveIdMapper> countriesMapping,
         List<SaveIdMapper> clubsMapping)
     {
+        _reportProgress("Players importation starts...");
+
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -288,8 +299,6 @@ internal class DataImporter
         }
 
         command.Prepare();
-
-        var notFoundPlayers = new List<(string, string, Player)>();
 
         var iFile = 0;
         foreach (var saveFilePath in saveFilePaths)
@@ -318,7 +327,7 @@ internal class DataImporter
 
                 if (!csvData.TryGetValue(string.Join(CsvColumnsSeparator, keyParts), out var csvPlayer))
                 {
-                    notFoundPlayers.Add((fileName, keyParts[0], player));
+                    _reportProgress($"Player '{keyParts[0]}' has no CSV counterpart for file {fileName}.");
                     continue;
                 }
 
@@ -347,10 +356,10 @@ internal class DataImporter
                 command.Parameters["@value"].Value = player._staff.Value;
                 command.Parameters["@contract_expiration"].Value = player._contract?.ContractEndDate ?? (object)DBNull.Value;
                 command.Parameters["@wage"].Value = player._staff.Wage;
-                command.Parameters["@transfer_status"].Value = player._contract != null && Enum.IsDefined((TransferStatus)player._contract.TransferStatus)
+                command.Parameters["@transfer_status"].Value = player._contract is not null && Enum.IsDefined((TransferStatus)player._contract.TransferStatus)
                     ? ((TransferStatus)player._contract.TransferStatus).ToString()
                     : DBNull.Value;
-                command.Parameters["@squad_status"].Value = player._contract != null && Enum.IsDefined((SquadStatus)player._contract.SquadStatus)
+                command.Parameters["@squad_status"].Value = player._contract is not null && Enum.IsDefined((SquadStatus)player._contract.SquadStatus)
                     ? ((SquadStatus)player._contract.SquadStatus).ToString()
                     : DBNull.Value;
                 command.Parameters["@manager_job_rel"].Value = player._contract?.ManagerReleaseClause == true
@@ -391,12 +400,10 @@ internal class DataImporter
 
                 command.ExecuteNonQuery();
 
-                sendPlayerCreationReport(keyParts[0]);
+                _reportProgress($"Player '{keyParts[0]}' has been created for file {fileName}.");
             }
             iFile++;
         }
-
-        return notFoundPlayers;
     }
 
     private static Dictionary<string, string[]> GetDataFromCsvFile(string path)

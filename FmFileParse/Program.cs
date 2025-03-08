@@ -22,28 +22,14 @@ if (choice == 1 || choice == 3)
 {
     var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
 
-    var importer = new DataImporter();
+    var importer = new DataImporter(Console.WriteLine);
 
-    var notCreatedPlayers = importer.ProceedToImport(
-        saveFiles,
-        csvFiles,
-        x => Console.WriteLine($"Player {x} created."));
-
-    if (notCreatedPlayers.Count > 0)
-    {
-        Console.WriteLine($"{notCreatedPlayers.Count} players has not been created:");
-        foreach (var p in notCreatedPlayers)
-        {
-            Console.WriteLine(p);
-        }
-    }
+    importer.ProceedToImport(saveFiles, csvFiles);
 }
 
 if (choice == 2 || choice == 3)
 {
-    var merger = new PlayersMerger(
-        saveFiles.Length,
-        x => Console.WriteLine(x.Item2 ? $"[Created] {x.Item1}" : $"[Ignored] {x.Item1}"));
+    var merger = new PlayersMerger(saveFiles.Length, Console.WriteLine);
 
     merger.ProceedToMerge();
 }
