@@ -42,7 +42,7 @@ internal class DataImporter
 
     public DataImporter()
     {
-        _loadedSaveData = new Dictionary<string, SaveGameData>();
+        _loadedSaveData = [];
     }
 
     public IReadOnlyList<(string, string, Player)> ProceedToImport(
@@ -57,7 +57,7 @@ internal class DataImporter
 
         ClearAllData();
         var countries = ImportCountries(saveFilePaths);
-        ImportCompetitions(saveFilePaths[0]);
+        var competitions = ImportCompetitions(saveFilePaths, countries);
         ImportClubs(saveFilePaths[0]);
         return ImportPlayers(saveFilePaths, extractFilePaths, sendPlayerCreationReport);
     }
@@ -81,11 +81,12 @@ internal class DataImporter
         }
     }
 
-    private SaveGameData GetSaveGameDataFromCache(string saveFilePath)
+    private SaveGameData GetSaveGameDataFromCache(
+        string saveFilePath)
     {
-        if (_loadedSaveData.ContainsKey(saveFilePath))
+        if (_loadedSaveData.TryGetValue(saveFilePath, out var value))
         {
-            return _loadedSaveData[saveFilePath];
+            return value;
         }
 
         var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
@@ -93,7 +94,8 @@ internal class DataImporter
         return data;
     }
 
-    private List<SaveIdMapper> ImportCountries(string[] saveFilePaths)
+    private List<SaveIdMapper> ImportCountries(
+        string[] saveFilePaths)
     {
         var countries = new List<SaveIdMapper>(250);
 
@@ -106,6 +108,7 @@ internal class DataImporter
         command.SetParameter("name", DbType.String);
         command.Prepare();
 
+        var iFile = 0;
         foreach (var saveFilePath in saveFilePaths)
         {
             var data = GetSaveGameDataFromCache(saveFilePath);
@@ -115,10 +118,7 @@ internal class DataImporter
                 var countryMatch = countries.FirstOrDefault(x => x.Key.Equals(data.Nations[key].Name, StringComparison.InvariantCultureIgnoreCase));
                 if (!countryMatch.Equals(default(SaveIdMapper)))
                 {
-                    if (!countryMatch.SavesId.Contains(data.Nations[key].Id))
-                    {
-                        countryMatch.SavesId.Add(data.Nations[key].Id);
-                    }
+                    countryMatch.SavesId.Add(iFile, data.Nations[key].Id);
                 }
                 else
                 {
@@ -129,42 +129,77 @@ internal class DataImporter
                     {
                         DbId = (int)command.LastInsertedId,
                         Key = data.Nations[key].Name,
-                        SavesId = [ data.Nations[key].Id ]
+                        SavesId = new Dictionary<int, int>
+                        {
+                            { iFile, data.Nations[key].Id }
+                        }
                     });
                 }
             }
+            iFile++;
         }
 
         return countries;
     }
 
-    private void ImportCompetitions(string saveFilePath)
+    private List<SaveIdMapper> ImportCompetitions(
+        string[] saveFilePaths,
+        List<SaveIdMapper> countriesMapping)
     {
-        var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
+        var competitions = new List<SaveIdMapper>(500);
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "INSERT INTO competitions (id, name, long_name, acronym, country_id) " +
-            "VALUES (@id, @name, @long_name, @acronym, @country_id)";
-        command.SetParameter("id", DbType.Int32);
+        command.CommandText = "INSERT INTO competitions (name, long_name, acronym, country_id) " +
+            "VALUES (@name, @long_name, @acronym, @country_id)";
         command.SetParameter("name", DbType.String);
         command.SetParameter("long_name", DbType.String);
         command.SetParameter("acronym", DbType.String);
         command.SetParameter("country_id", DbType.Int32);
         command.Prepare();
 
-        foreach (var key in data.ClubComps.Keys)
+        var iFile = 0;
+        foreach (var saveFilePath in saveFilePaths)
         {
-            command.Parameters["@id"].Value = data.ClubComps[key].Id;
-            command.Parameters["@name"].Value = data.ClubComps[key].Name;
-            command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
-            command.Parameters["@acronym"].Value = data.ClubComps[key].Abbreviation;
-            command.Parameters["@country_id"].Value = data.ClubComps[key].NationId >= 0
-                ? data.ClubComps[key].NationId
-                : DBNull.Value;
-            command.ExecuteNonQuery();
+            var data = GetSaveGameDataFromCache(saveFilePath);
+
+            foreach (var key in data.ClubComps.Keys)
+            {
+                var countryId = data.ClubComps[key].NationId >= 0
+                    ? countriesMapping.First(x => x.SavesId[iFile] == data.ClubComps[key].NationId).DbId
+                    : -1;
+
+                var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
+
+                var competitionMatch = competitions.FirstOrDefault(x => x.Key.Equals(competitionKey, StringComparison.InvariantCultureIgnoreCase));
+                if (!competitionMatch.Equals(default(SaveIdMapper)))
+                {
+                    competitionMatch.SavesId.Add(iFile, data.ClubComps[key].Id);
+                }
+                else
+                {
+                    command.Parameters["@name"].Value = data.ClubComps[key].Name;
+                    command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
+                    command.Parameters["@acronym"].Value = data.ClubComps[key].Abbreviation;
+                    command.Parameters["@country_id"].Value = countryId == -1 ? DBNull.Value : countryId;
+                    command.ExecuteNonQuery();
+
+                    competitions.Add(new SaveIdMapper
+                    {
+                        DbId = (int)command.LastInsertedId,
+                        Key = competitionKey,
+                        SavesId = new Dictionary<int, int>
+                        {
+                            { iFile, data.ClubComps[key].Id }
+                        }
+                    });
+                }
+            }
+            iFile++;
         }
+
+        return competitions;
     }
 
     private void ImportClubs(string saveFilePath)
@@ -365,6 +400,6 @@ internal class DataImporter
 
         public int DbId { get; init; }
 
-        public List<int> SavesId { get; init; }
+        public Dictionary<int, int> SavesId { get; init; }
     }
 }
