@@ -356,6 +356,7 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@value"].Value = player._staff.Value;
                 command.Parameters["@contract_expiration"].Value = player._contract?.ContractEndDate ?? (object)DBNull.Value;
                 command.Parameters["@wage"].Value = player._staff.Wage;
+                // TODO: check, it's probably wrong
                 command.Parameters["@transfer_status"].Value = player._contract is not null && Enum.IsDefined((TransferStatus)player._contract.TransferStatus)
                     ? ((TransferStatus)player._contract.TransferStatus).ToString()
                     : DBNull.Value;
@@ -400,9 +401,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 foreach (var attributeName in Settings.AttributeColumns)
                 {
-                    command.Parameters[$"@{attributeName}"].Value = attributeName == "injury_proneness"
-                        ? 20 - int.Parse(csvPlayer[OrderedCsvColumns.IndexOf("injury_proneness")])
-                        : csvPlayer[OrderedCsvColumns.IndexOf(attributeName)];
+                    command.Parameters[$"@{attributeName}"].Value = csvPlayer[OrderedCsvColumns.IndexOf(attributeName)];
                 }
 
                 command.ExecuteNonQuery();
