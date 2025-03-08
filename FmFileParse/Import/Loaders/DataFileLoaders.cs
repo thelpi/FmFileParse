@@ -102,9 +102,9 @@ namespace FmFileParse
             return dic;
         }
 
-        public static Dictionary<int, Nation> GetDataFileNationDictionary(SaveGameFile savegame)
+        public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
         {
-            Dictionary<int, Nation> dic = new Dictionary<int, Nation>();
+            Dictionary<int, Country> dic = new Dictionary<int, Country>();
             var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Nations);
             var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 

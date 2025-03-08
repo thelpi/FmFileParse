@@ -17,7 +17,7 @@ namespace FmFileParse
 
             Dictionary<int, string> commonNames = GetDataFileStringsDictionary(savegame, DataFileType.Common_Names);
 
-            Dictionary<int, Nation> nations = DataFileLoaders.GetDataFileNationDictionary(savegame); 
+            Dictionary<int, Country> nations = DataFileLoaders.GetDataFileNationDictionary(savegame); 
             
             Dictionary<int, Club> clubs = DataFileLoaders.GetDataFileClubDictionary(savegame);
 

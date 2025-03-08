@@ -8,7 +8,7 @@
 
         public Dictionary<int, string> CommonNames { get; set; }
 
-        public Dictionary<int, Nation> Nations { get; set; }
+        public Dictionary<int, Country> Nations { get; set; }
 
         public Dictionary<int, Club> Clubs { get; set; }
 

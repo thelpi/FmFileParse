@@ -22,7 +22,7 @@ namespace FmFileParse
             return PlayerLoader.LoadPlayers(savegame);
         }
 
-        public static List<int> GetCountriesInRegion(Dictionary<int, Nation> nations, string regionName)
+        public static List<int> GetCountriesInRegion(Dictionary<int, Country> nations, string regionName)
         {
             List<int> countryIds = new List<int>();
             if (string.IsNullOrWhiteSpace(regionName))
@@ -85,25 +85,25 @@ namespace FmFileParse
             savegame.GameDate = ByteHandler.GetDateFromBytes(fileData[0], fileFacts.DataSize - 8).Value;
         }
 
-        private static List<int> GetUKCountries(Dictionary<int, Nation> nations)
+        private static List<int> GetUKCountries(Dictionary<int, Country> nations)
         {
             List<string> countryNames = new List<string>() { "ENGLAND", "SCOTLAND", "WALES", "IRELAND", "REPUBLIC OF IRELAND", "N.IRELAND", "NORTHERN IRELAND" };
             return PopulateNationIds(countryNames, nations);
         }
 
-        private static List<int> GetScandiCountries(Dictionary<int, Nation> nations)
+        private static List<int> GetScandiCountries(Dictionary<int, Country> nations)
         {
             List<string> countryNames = new List<string>() { "ICELAND", "FINLAND", "NORWAY", "SWEDEN", "DENMARK" };
             return PopulateNationIds(countryNames, nations);
         }
 
-        private static List<int> GetOceaniaCountries(Dictionary<int, Nation> nations)
+        private static List<int> GetOceaniaCountries(Dictionary<int, Country> nations)
         {
             List<string> countryNames = new List<string>() { "AUSTRALIA", "FIJI", "SAMOA", "SOLOMON ISLANDS", "VANATU" };
             return PopulateNationIds(countryNames, nations);
         }
 
-        private static List<int> PopulateNationIds(List<string> nationNames, Dictionary<int, Nation> nations)
+        private static List<int> PopulateNationIds(List<string> nationNames, Dictionary<int, Country> nations)
         { 
             List<int> countryIds = new List<int>();
 

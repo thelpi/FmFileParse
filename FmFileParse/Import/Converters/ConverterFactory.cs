@@ -17,7 +17,7 @@ namespace FmFileParse.Converters
                 return (ITupleConverter<T>)new ClubTupleConverter();
             }
             
-            if (typeof(T) == typeof(Nation))
+            if (typeof(T) == typeof(Country))
             {
                 return (ITupleConverter<T>)new NationTupleConverter();
             }
