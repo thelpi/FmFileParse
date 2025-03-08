@@ -115,12 +115,7 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var key in data.Nations.Keys)
             {
-                var countryMatch = countries.FirstOrDefault(x => x.Key.Equals(data.Nations[key].Name, StringComparison.InvariantCultureIgnoreCase));
-                if (!countryMatch.Equals(default(SaveIdMapper)))
-                {
-                    countryMatch.SavesId.Add(iFile, data.Nations[key].Id);
-                }
-                else
+                if (!TryAddSaveIdToMap(data.Nations, x => x.Id, countries, iFile, data.Nations[key].Name, key))
                 {
                     command.Parameters["@name"].Value = data.Nations[key].Name;
                     command.ExecuteNonQuery();
@@ -185,12 +180,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
 
-                var competitionMatch = competitions.FirstOrDefault(x => x.Key.Equals(competitionKey, StringComparison.InvariantCultureIgnoreCase));
-                if (!competitionMatch.Equals(default(SaveIdMapper)))
-                {
-                    competitionMatch.SavesId.Add(iFile, data.ClubComps[key].Id);
-                }
-                else
+                if (!TryAddSaveIdToMap(data.ClubComps, x => x.Id, competitions, iFile, competitionKey, key))
                 {
                     command.Parameters["@name"].Value = data.ClubComps[key].Name;
                     command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
@@ -255,12 +245,7 @@ internal class DataImporter(Action<string> reportProgress)
                     : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
                 var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
 
-                var clubMatch = clubs.FirstOrDefault(x => x.Key.Equals(clubKey, StringComparison.InvariantCultureIgnoreCase));
-                if (!clubMatch.Equals(default(SaveIdMapper)))
-                {
-                    clubMatch.SavesId.Add(iFile, data.Clubs[key].ClubId);
-                }
-                else
+                if (!TryAddSaveIdToMap(data.Clubs, x => x.ClubId, clubs, iFile, clubKey, key))
                 {
                     command.Parameters["@name"].Value = data.Clubs[key].Name;
                     command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
@@ -456,6 +441,23 @@ internal class DataImporter(Action<string> reportProgress)
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
+    }
+
+    private static bool TryAddSaveIdToMap<T>(
+        Dictionary<int, T> dataDict,
+        Func<T, int> getId,
+        List<SaveIdMapper> mapping,
+        int fileIndex,
+        string dataKey,
+        int dataId)
+    {
+        var match = mapping.FirstOrDefault(x => x.Key.Equals(dataKey, StringComparison.InvariantCultureIgnoreCase));
+        if (!match.Equals(default(SaveIdMapper)))
+        {
+            match.SavesId.Add(fileIndex, getId(dataDict[dataId]));
+            return true;
+        }
+        return false;
     }
 
     private readonly struct SaveIdMapper
