@@ -12,7 +12,7 @@
 
         public Dictionary<int, Club> Clubs { get; set; }
 
-        public Dictionary<int, Club_Comp> ClubComps { get; set; }
+        public Dictionary<int, ClubComp> ClubComps { get; set; }
 
         public List<Player> Players { get; set; }
 

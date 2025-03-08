@@ -85,9 +85,9 @@ namespace FmFileParse
             return dic;
         }
 
-        public static Dictionary<int, Club_Comp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
+        public static Dictionary<int, ClubComp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
         {
-            Dictionary<int, Club_Comp> dic = new Dictionary<int, Club_Comp>();
+            Dictionary<int, ClubComp> dic = new Dictionary<int, ClubComp>();
             var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Club_Comps);
             var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 

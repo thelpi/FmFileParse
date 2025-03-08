@@ -83,9 +83,9 @@ namespace FmFileParse.Converters
 
     internal class ClubCompConverter
     {
-        public Club_Comp Convert(byte[] source)
+        public ClubComp Convert(byte[] source)
         {
-            var comp = new Club_Comp();
+            var comp = new ClubComp();
 
             comp.Id = ByteHandler.GetIntFromBytes(source, 0);
             comp.LongName = ByteHandler.GetStringFromBytes(source, 4, 50);

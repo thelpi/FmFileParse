@@ -9,7 +9,7 @@ namespace FmFileParse
         {
             SaveGameData saveData = new SaveGameData();
 
-            Dictionary<int, Club_Comp> clubcomps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame);
+            Dictionary<int, ClubComp> clubcomps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame);
 
             Dictionary<int, string> firstnames = GetDataFileStringsDictionary(savegame, DataFileType.First_Names);
 
