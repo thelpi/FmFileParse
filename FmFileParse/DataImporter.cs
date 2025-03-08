@@ -32,7 +32,7 @@ internal class DataImporter()
     private readonly Func<MySqlConnection> _getConnection =
         () => new MySqlConnection(Settings.ConnString);
 
-    public void ClearAllData(bool reimportCountries)
+    public void ClearAllData()
     {
         using var connection = _getConnection();
         connection.Open();
@@ -49,11 +49,8 @@ internal class DataImporter()
         command.CommandText = "DELETE FROM competitions";
         command.ExecuteNonQuery();
 
-        if (reimportCountries)
-        {
-            command.CommandText = "DELETE FROM countries";
-            command.ExecuteNonQuery();
-        }
+        command.CommandText = "DELETE FROM countries";
+        command.ExecuteNonQuery();
     }
 
     public void ImportCountries(string saveFilePath)
@@ -63,7 +60,7 @@ internal class DataImporter()
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        // TODO: confederation, is_eu (when done, remove the "reimport countries" functionnality)
+        // TODO: confederation, is_eu
         command.CommandText = "INSERT INTO countries (id, name, is_eu, confederation_id) " +
             "VALUES (@id, @name, 0, 1)";
         command.SetParameter("id", DbType.Int32);
@@ -196,7 +193,6 @@ internal class DataImporter()
                     continue;
                 }
 
-                // from save file
                 command.Parameters["@id"].Value = player._staff.StaffId;
                 command.Parameters["@filename"].Value = fileName;
                 command.Parameters["@first_name"].Value = firstName;

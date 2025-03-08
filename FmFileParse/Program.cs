@@ -22,17 +22,10 @@ if (choice == 1 || choice == 3)
 {
     var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
 
-    Console.WriteLine("Reimport countries? y/n");
-    rawChoice = Console.ReadLine()?.ToLowerInvariant();
-    var reimportCountries = rawChoice == "y";
-
     var importer = new DataImporter();
 
-    importer.ClearAllData(reimportCountries);
-    if (reimportCountries)
-    {
-        importer.ImportCountries(saveFiles[0]);
-    }
+    importer.ClearAllData();
+    importer.ImportCountries(saveFiles[0]);
     importer.ImportCompetitions(saveFiles[0]);
     importer.ImportClubs(saveFiles[0]);
     var notCreatedPlayers = importer.ImportPlayers(saveFiles, csvFiles, x =>
