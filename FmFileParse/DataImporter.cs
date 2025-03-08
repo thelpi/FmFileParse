@@ -58,8 +58,8 @@ internal class DataImporter
         ClearAllData();
         var countries = ImportCountries(saveFilePaths);
         var competitions = ImportCompetitions(saveFilePaths, countries);
-        ImportClubs(saveFilePaths[0]);
-        return ImportPlayers(saveFilePaths, extractFilePaths, sendPlayerCreationReport);
+        var clubs = ImportClubs(saveFilePaths, countries, competitions);
+        return ImportPlayers(saveFilePaths, extractFilePaths, sendPlayerCreationReport, countries, clubs);
     }
 
     private void ClearAllData()
@@ -167,7 +167,7 @@ internal class DataImporter
             foreach (var key in data.ClubComps.Keys)
             {
                 var countryId = data.ClubComps[key].NationId >= 0
-                    ? countriesMapping.First(x => x.SavesId[iFile] == data.ClubComps[key].NationId).DbId
+                    ? countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.ClubComps[key].NationId).DbId
                     : -1;
 
                 var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
@@ -202,17 +202,19 @@ internal class DataImporter
         return competitions;
     }
 
-    private void ImportClubs(string saveFilePath)
+    private List<SaveIdMapper> ImportClubs(
+        string[] saveFilePaths,
+        List<SaveIdMapper> countriesMapping,
+        List<SaveIdMapper> competitionsMapping)
     {
-        var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
+        var clubs = new List<SaveIdMapper>(1000);
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "INSERT INTO clubs (id, name, long_name, country_id, reputation, division_id) " +
-            "VALUES (@id, @name, @long_name, @country_id, @reputation, @division_id)";
+        command.CommandText = "INSERT INTO clubs (name, long_name, country_id, reputation, division_id) " +
+            "VALUES (@name, @long_name, @country_id, @reputation, @division_id)";
 
-        command.SetParameter("id", DbType.Int32);
         command.SetParameter("name", DbType.String);
         command.SetParameter("long_name", DbType.String);
         command.SetParameter("country_id", DbType.Int32);
@@ -221,26 +223,59 @@ internal class DataImporter
 
         command.Prepare();
 
-        foreach (var key in data.Clubs.Keys)
+        var iFile = 0;
+        foreach (var saveFilePath in saveFilePaths)
         {
-            command.Parameters["@id"].Value = data.Clubs[key].ClubId;
-            command.Parameters["@name"].Value = data.Clubs[key].Name;
-            command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
-            command.Parameters["@country_id"].Value = data.Clubs[key].NationId < 0
-                ? DBNull.Value
-                : data.Clubs[key].NationId;
-            command.Parameters["@reputation"].Value = data.Clubs[key].Reputation;
-            command.Parameters["@division_id"].Value = data.Clubs[key].DivisionId >= 0
-                ? data.Clubs[key].DivisionId
-                : DBNull.Value;
-            command.ExecuteNonQuery();
+            var data = GetSaveGameDataFromCache(saveFilePath);
+
+            foreach (var key in data.Clubs.Keys)
+            {
+                var countryId = data.Clubs[key].NationId < 0
+                    ? -1
+                    : countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.Clubs[key].NationId).DbId;
+                var divisionId = data.Clubs[key].DivisionId < 0
+                    ? -1
+                    : competitionsMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.Clubs[key].DivisionId).DbId;
+                var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
+
+                var clubMatch = clubs.FirstOrDefault(x => x.Key.Equals(clubKey, StringComparison.InvariantCultureIgnoreCase));
+                if (!clubMatch.Equals(default(SaveIdMapper)))
+                {
+                    clubMatch.SavesId.Add(iFile, data.Clubs[key].ClubId);
+                }
+                else
+                {
+                    command.Parameters["@name"].Value = data.Clubs[key].Name;
+                    command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
+                    command.Parameters["@country_id"].Value = countryId == -1 ? DBNull.Value : countryId;
+                    command.Parameters["@reputation"].Value = data.Clubs[key].Reputation;
+                    command.Parameters["@division_id"].Value = divisionId == -1 ? DBNull.Value : divisionId;
+                    command.ExecuteNonQuery();
+
+                    clubs.Add(new SaveIdMapper
+                    {
+                        DbId = (int)command.LastInsertedId,
+                        Key = clubKey,
+                        SavesId = new Dictionary<int, int>
+                        {
+                            { iFile, data.Clubs[key].ClubId }
+                        }
+                    });
+                }
+            }
+
+            iFile++;
         }
+
+        return clubs;
     }
 
-    private IReadOnlyList<(string, string, Player)> ImportPlayers(
+    private List<(string, string, Player)> ImportPlayers(
         string[] saveFilePaths,
         string[] extractFilePaths,
-        Action<string> sendPlayerCreationReport)
+        Action<string> sendPlayerCreationReport,
+        List<SaveIdMapper> countriesMapping,
+        List<SaveIdMapper> clubsMapping)
     {
         using var connection = _getConnection();
         connection.Open();
@@ -256,13 +291,14 @@ internal class DataImporter
 
         var notFoundPlayers = new List<(string, string, Player)>();
 
-        for (var i = 0; i < saveFilePaths.Length; i++)
+        var iFile = 0;
+        foreach (var saveFilePath in saveFilePaths)
         {
-            var fileName = Path.GetFileName(saveFilePaths[i]);
+            var fileName = Path.GetFileName(saveFilePath);
 
-            var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePaths[i]);
+            var data = GetSaveGameDataFromCache(saveFilePath);
 
-            var csvData = GetDataFromCsvFile(extractFilePaths[i]);
+            var csvData = GetDataFromCsvFile(extractFilePaths[iFile]);
 
             foreach (var player in data.Players)
             {
@@ -292,9 +328,9 @@ internal class DataImporter
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
                 command.Parameters["@date_of_birth"].Value = player._staff.DOB;
-                command.Parameters["@country_id"].Value = player._staff.NationId;
+                command.Parameters["@country_id"].Value = countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.NationId).DbId;
                 command.Parameters["@secondary_country_id"].Value = player._staff.SecondaryNationId >= 0
-                    ? player._staff.SecondaryNationId
+                    ? countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.SecondaryNationId).DbId
                     : DBNull.Value;
                 command.Parameters["@caps"].Value = player._staff.InternationalCaps;
                 command.Parameters["@international_goals"].Value = player._staff.InternationalGoals;
@@ -305,7 +341,9 @@ internal class DataImporter
                 command.Parameters["@home_reputation"].Value = player._player.DomesticReputation;
                 command.Parameters["@current_reputation"].Value = player._player.Reputation;
                 command.Parameters["@world_reputation"].Value = player._player.WorldReputation;
-                command.Parameters["@club_id"].Value = player._staff.ClubId >= 0 ? player._staff.ClubId : DBNull.Value;
+                command.Parameters["@club_id"].Value = player._staff.ClubId >= 0
+                    ? clubsMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.ClubId).DbId
+                    : DBNull.Value;
                 command.Parameters["@value"].Value = player._staff.Value;
                 command.Parameters["@contract_expiration"].Value = player._contract?.ContractEndDate ?? (object)DBNull.Value;
                 command.Parameters["@wage"].Value = player._staff.Wage;
@@ -355,6 +393,7 @@ internal class DataImporter
 
                 sendPlayerCreationReport(keyParts[0]);
             }
+            iFile++;
         }
 
         return notFoundPlayers;

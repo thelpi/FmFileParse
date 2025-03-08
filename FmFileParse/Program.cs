@@ -4,7 +4,7 @@ using FmFileParse;
 
 Console.WriteLine("1 - data importation");
 Console.WriteLine("2 - players merge");
-Console.WriteLine("3 - data importation the players merge");
+Console.WriteLine("3 - data importation then players merge");
 Console.WriteLine("Other - exit");
 
 var rawChoice = Console.ReadLine();
@@ -45,7 +45,7 @@ if (choice == 2 || choice == 3)
         saveFiles.Length,
         x => Console.WriteLine(x.Item2 ? $"[Created] {x.Item1}" : $"[Ignored] {x.Item1}"));
 
-    merger.ProceedToMerge(true);
+    merger.ProceedToMerge();
 }
 
 Console.WriteLine("Process is done; Press any key to close.");

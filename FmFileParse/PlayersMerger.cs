@@ -14,12 +14,9 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
 
     private static readonly string[] SqlColumns = ["occurences", .. Settings.CommonSqlColumns];
 
-    public void ProceedToMerge(bool resetAllData)
+    public void ProceedToMerge()
     {
-        if (resetAllData)
-        {
-            RemoveDataFromPlayersTable();
-        }
+        RemoveDataFromPlayersTable();
 
         var writePlayerCmd = PrepareInsertPlayerCommand();
         var playersByNameCmd = PrepareGetPlayersByName();
@@ -284,7 +281,8 @@ internal class PlayersMerger(int numberOfSaves, Action<(string, bool)> sendPlaye
 
             var (value, occurences) = allValues.GetRepresentativeValue();
 
-            if (occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate)
+            if (occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate
+                || Settings.UnmergedOnlyColumns.Contains(col))
             {
                 // when there's a common value for the column
                 colsAndVals.Add(col, value);
