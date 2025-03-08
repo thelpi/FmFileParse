@@ -359,9 +359,6 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@transfer_status"].Value = player._contract is not null && Enum.IsDefined((TransferStatus)player._contract.TransferStatus)
                     ? ((TransferStatus)player._contract.TransferStatus).ToString()
                     : DBNull.Value;
-                command.Parameters["@squad_status"].Value = player._contract is not null && Enum.IsDefined((SquadStatus)player._contract.SquadStatus)
-                    ? ((SquadStatus)player._contract.SquadStatus).ToString()
-                    : DBNull.Value;
                 command.Parameters["@manager_job_rel"].Value = player._contract?.ManagerReleaseClause == true
                     ? player._contract.ReleaseClauseValue
                     : 0;
@@ -391,6 +388,16 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@side_center"].Value = player._player.Centre;
 
                 // from extract file
+
+                // TODO: source version is unreliable for now
+                /*command.Parameters["@squad_status"].Value = player._contract is not null && Enum.IsDefined((SquadStatus)player._contract.SquadStatus)
+                    ? ((SquadStatus)player._contract.SquadStatus).ToString()
+                    : DBNull.Value;*/
+                var sourceValue = csvPlayer[OrderedCsvColumns.IndexOf("squad_status")];
+                command.Parameters["@squad_status"].Value = string.IsNullOrWhiteSpace(sourceValue)
+                    ? DBNull.Value
+                    : sourceValue;
+
                 foreach (var attributeName in Settings.AttributeColumns)
                 {
                     command.Parameters[$"@{attributeName}"].Value = attributeName == "injury_proneness"
