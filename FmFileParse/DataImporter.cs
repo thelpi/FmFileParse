@@ -245,7 +245,7 @@ internal class DataImporter(Action<string> reportProgress)
                     : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
                 var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
 
-                if (!TryAddSaveIdToMap(data.Clubs, x => x.ClubId, clubs, iFile, clubKey, key))
+                if (!TryAddSaveIdToMap(data.Clubs, x => x.Id, clubs, iFile, clubKey, key))
                 {
                     command.Parameters["@name"].Value = data.Clubs[key].Name;
                     command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
@@ -260,7 +260,7 @@ internal class DataImporter(Action<string> reportProgress)
                         Key = clubKey,
                         SavesId = new Dictionary<int, int>
                         {
-                            { iFile, data.Clubs[key].ClubId }
+                            { iFile, data.Clubs[key].Id }
                         }
                     });
 

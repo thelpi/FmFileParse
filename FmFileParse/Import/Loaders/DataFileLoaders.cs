@@ -73,11 +73,11 @@ namespace FmFileParse
             {
                 var club = converter.Convert(item);
 
-                if (club.ClubId != -1)
+                if (club.Id != -1)
                 {
-                    if (!dic.ContainsKey(club.ClubId))
+                    if (!dic.ContainsKey(club.Id))
                     {
-                        dic.Add(club.ClubId, club);
+                        dic.Add(club.Id, club);
                     }
                 }
             }

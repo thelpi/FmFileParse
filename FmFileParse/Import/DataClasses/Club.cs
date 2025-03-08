@@ -1,32 +1,21 @@
-﻿namespace FmFileParse.DataClasses
+﻿using FmFileParse.Import.DataClasses;
+
+namespace FmFileParse.DataClasses;
+
+public class Club : BaseData
 {
-    public class Club
-    {
-        [DataFileInfo(0)]
-        public int ClubId { get; set; }
+    [DataFileInfo(4, 50)]
+    public string LongName { get; set; } = string.Empty;
 
-        [DataFileInfo(4, 50)]
-        public string LongName { get; set; }
+    [DataFileInfo(56, 25)]
+    public string Name { get; set; } = string.Empty;
 
-        [DataFileInfo(56, 25)]
-        public string Name { get; set; }
+    [DataFileInfo(83)]
+    public int NationId { get; set; }
 
-        [DataFileInfo(83)]
-        public int NationId { get; set; }
+    [DataFileInfo(87)]
+    public int DivisionId { get; set; }
 
-        [DataFileInfo(87)]
-        public int DivisionId { get; set; }
-
-        [DataFileInfo(128)]
-        public short Reputation { get; set; }
-
-        public Club()
-        { }
-
-        public Club(int clubId, string name)
-        {
-            ClubId = clubId;
-            Name = name;
-        }
-    }
+    [DataFileInfo(128)]
+    public short Reputation { get; set; }
 }

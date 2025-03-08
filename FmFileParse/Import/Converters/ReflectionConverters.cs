@@ -65,7 +65,7 @@ namespace FmFileParse.Converters
                 
                 ConverterReflection.SetConversionProperties(club, /*props, attribs,*/ bytes);
 
-                var result = new Tuple<int, object>(club.ClubId, club);
+                var result = new Tuple<int, object>(club.Id, club);
                 return result;
             }
         }

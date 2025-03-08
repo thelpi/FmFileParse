@@ -70,7 +70,7 @@ namespace FmFileParse.Converters
         {
             var club = new Club
             {
-                ClubId = ByteHandler.GetIntFromBytes(source, 0),
+                Id = ByteHandler.GetIntFromBytes(source, 0),
                 LongName = ByteHandler.GetStringFromBytes(source, 4, 50),
                 Name = ByteHandler.GetStringFromBytes(source, 56, 25),
                 NationId = ByteHandler.GetIntFromBytes(source, 83),
