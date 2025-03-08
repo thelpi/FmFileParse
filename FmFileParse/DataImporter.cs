@@ -180,7 +180,7 @@ internal class DataImporter(Action<string> reportProgress)
             foreach (var key in data.ClubComps.Keys)
             {
                 var countryId = data.ClubComps[key].NationId >= 0
-                    ? countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.ClubComps[key].NationId).DbId
+                    ? GetMapDbId(countriesMapping, iFile, data.ClubComps[key].NationId)
                     : -1;
 
                 var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
@@ -249,10 +249,10 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 var countryId = data.Clubs[key].NationId < 0
                     ? -1
-                    : countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.Clubs[key].NationId).DbId;
+                    : GetMapDbId(countriesMapping, iFile, data.Clubs[key].NationId);
                 var divisionId = data.Clubs[key].DivisionId < 0
                     ? -1
-                    : competitionsMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == data.Clubs[key].DivisionId).DbId;
+                    : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
                 var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
 
                 var clubMatch = clubs.FirstOrDefault(x => x.Key.Equals(clubKey, StringComparison.InvariantCultureIgnoreCase));
@@ -346,9 +346,9 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
                 command.Parameters["@date_of_birth"].Value = player._staff.DOB;
-                command.Parameters["@country_id"].Value = countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.NationId).DbId;
+                command.Parameters["@country_id"].Value = GetMapDbId(countriesMapping, iFile, player._staff.NationId);
                 command.Parameters["@secondary_country_id"].Value = player._staff.SecondaryNationId >= 0
-                    ? countriesMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.SecondaryNationId).DbId
+                    ? GetMapDbId(countriesMapping, iFile, player._staff.SecondaryNationId)
                     : DBNull.Value;
                 command.Parameters["@caps"].Value = player._staff.InternationalCaps;
                 command.Parameters["@international_goals"].Value = player._staff.InternationalGoals;
@@ -360,7 +360,7 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@current_reputation"].Value = player._player.Reputation;
                 command.Parameters["@world_reputation"].Value = player._player.WorldReputation;
                 command.Parameters["@club_id"].Value = player._staff.ClubId >= 0
-                    ? clubsMapping.First(x => x.SavesId.ContainsKey(iFile) && x.SavesId[iFile] == player._staff.ClubId).DbId
+                    ? GetMapDbId(clubsMapping, iFile, player._staff.ClubId)
                     : DBNull.Value;
                 command.Parameters["@value"].Value = player._staff.Value;
                 command.Parameters["@contract_expiration"].Value = player._contract?.ContractEndDate ?? (object)DBNull.Value;
@@ -420,6 +420,9 @@ internal class DataImporter(Action<string> reportProgress)
             iFile++;
         }
     }
+
+    private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
+        => mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex] == saveId).DbId;
 
     private static Dictionary<string, string[]> GetDataFromCsvFile(string path)
     {
