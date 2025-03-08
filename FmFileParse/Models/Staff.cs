@@ -2,6 +2,8 @@
 
 public class Staff : BaseData
 {
+    public Contract? Contract { get; set; }
+
     [DataFileInfo(97)]
     public int StaffPlayerId { get; set; }
 
@@ -78,21 +80,5 @@ public class Staff : BaseData
     public bool IsUnderValue(int value)
     {
         return value >= Value;
-    }
-}
-
-public class DataFileInfoAttribute : Attribute
-{
-    public int DataFilePosition;
-
-    public bool IsIntrinsic;
-
-    public int Length;
-
-    public DataFileInfoAttribute(int position, int length = 0, bool isIntrinsic = false)
-    {
-        DataFilePosition = position;
-        IsIntrinsic = isIntrinsic;
-        Length = length;
     }
 }

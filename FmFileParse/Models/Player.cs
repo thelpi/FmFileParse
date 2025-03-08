@@ -1,44 +1,6 @@
 ﻿namespace FmFileParse.Models;
 
-public enum AttributeGroup
-{
-    Mental,
-
-    Physical,
-
-    Technical,
-
-    OffField,
-}
-
-public class AttributeGroupAttribute : Attribute
-{
-    public AttributeGroup Grouping { get; set; }
-
-    public AttributeGroupAttribute(AttributeGroup grouping)
-    {
-        Grouping = grouping;
-    }
-}
-
-public class Player
-{
-    public PlayerData _player;
-
-    public Staff _staff;
-
-    public Contract _contract;
-
-    public Player(PlayerData playerData, Staff staffData, Contract contract)
-    {
-        _player = playerData;
-        _staff = staffData;
-        _contract = contract;
-    }
-}
-
-
-public class PlayerData
+public class Player : Staff
 {
     [DataFileInfo(0)]
     public int PlayerId { get; set; }

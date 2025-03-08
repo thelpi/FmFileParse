@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Text;
 using FmFileParse.DataClasses;
+using FmFileParse.Models;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -12,7 +13,7 @@ internal class DataImporter(Action<string> reportProgress)
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
-        "clubs", "competitions", "countries", "countries"
+        "players", "clubs", "competitions", "countries"
     ];
 
     private static readonly string[] OrderedCsvColumns =
@@ -115,7 +116,7 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var key in data.Nations.Keys)
             {
-                if (!TryAddSaveIdToMap(data.Nations, x => x.Id, countries, iFile, data.Nations[key].Name, key))
+                if (!TryAddSaveIdToMap(data.Nations, countries, iFile, data.Nations[key].Name, key))
                 {
                     command.Parameters["@name"].Value = data.Nations[key].Name;
                     command.ExecuteNonQuery();
@@ -180,7 +181,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
 
-                if (!TryAddSaveIdToMap(data.ClubComps, x => x.Id, competitions, iFile, competitionKey, key))
+                if (!TryAddSaveIdToMap(data.ClubComps, competitions, iFile, competitionKey, key))
                 {
                     command.Parameters["@name"].Value = data.ClubComps[key].Name;
                     command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
@@ -245,7 +246,7 @@ internal class DataImporter(Action<string> reportProgress)
                     : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
                 var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
 
-                if (!TryAddSaveIdToMap(data.Clubs, x => x.Id, clubs, iFile, clubKey, key))
+                if (!TryAddSaveIdToMap(data.Clubs, clubs, iFile, clubKey, key))
                 {
                     command.Parameters["@name"].Value = data.Clubs[key].Name;
                     command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
@@ -305,18 +306,18 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var player in data.Players)
             {
-                var firstName = GetCleanDbName(player._staff.FirstNameId, data.FirstNames);
-                var lastName = GetCleanDbName(player._staff.SecondNameId, data.Surnames);
-                var commmonName = GetCleanDbName(player._staff.CommonNameId, data.CommonNames);
+                var firstName = GetCleanDbName(player.FirstNameId, data.FirstNames);
+                var lastName = GetCleanDbName(player.SecondNameId, data.Surnames);
+                var commmonName = GetCleanDbName(player.CommonNameId, data.CommonNames);
 
                 string[] keyParts =
                 [
                     (commmonName == DBNull.Value ? $"{lastName}, {firstName}" : $"{commmonName}").Trim(),
-                    player._player.WorldReputation.ToString(),
-                    player._player.Reputation.ToString(),
-                    player._player.DomesticReputation.ToString(),
-                    player._player.CurrentAbility.ToString(),
-                    player._player.PotentialAbility.ToString()
+                    player.WorldReputation.ToString(),
+                    player.Reputation.ToString(),
+                    player.DomesticReputation.ToString(),
+                    player.CurrentAbility.ToString(),
+                    player.PotentialAbility.ToString()
                 ];
 
                 if (!csvData.TryGetValue(string.Join(CsvColumnsSeparator, keyParts), out var csvPlayer))
@@ -325,62 +326,62 @@ internal class DataImporter(Action<string> reportProgress)
                     continue;
                 }
 
-                command.Parameters["@id"].Value = player._staff.Id;
+                command.Parameters["@id"].Value = player.Id;
                 command.Parameters["@filename"].Value = fileName;
                 command.Parameters["@first_name"].Value = firstName;
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
-                command.Parameters["@date_of_birth"].Value = player._staff.DOB;
-                command.Parameters["@country_id"].Value = GetMapDbId(countriesMapping, iFile, player._staff.NationId);
-                command.Parameters["@secondary_country_id"].Value = player._staff.SecondaryNationId >= 0
-                    ? GetMapDbId(countriesMapping, iFile, player._staff.SecondaryNationId)
+                command.Parameters["@date_of_birth"].Value = player.DOB;
+                command.Parameters["@country_id"].Value = GetMapDbId(countriesMapping, iFile, player.NationId);
+                command.Parameters["@secondary_country_id"].Value = player.SecondaryNationId >= 0
+                    ? GetMapDbId(countriesMapping, iFile, player.SecondaryNationId)
                     : DBNull.Value;
-                command.Parameters["@caps"].Value = player._staff.InternationalCaps;
-                command.Parameters["@international_goals"].Value = player._staff.InternationalGoals;
-                command.Parameters["@right_foot"].Value = player._player.RightFoot;
-                command.Parameters["@left_foot"].Value = player._player.LeftFoot;
-                command.Parameters["@ability"].Value = player._player.CurrentAbility;
-                command.Parameters["@potential_ability"].Value = player._player.PotentialAbility;
-                command.Parameters["@home_reputation"].Value = player._player.DomesticReputation;
-                command.Parameters["@current_reputation"].Value = player._player.Reputation;
-                command.Parameters["@world_reputation"].Value = player._player.WorldReputation;
-                command.Parameters["@club_id"].Value = player._staff.ClubId >= 0
-                    ? GetMapDbId(clubsMapping, iFile, player._staff.ClubId)
+                command.Parameters["@caps"].Value = player.InternationalCaps;
+                command.Parameters["@international_goals"].Value = player.InternationalGoals;
+                command.Parameters["@right_foot"].Value = player.RightFoot;
+                command.Parameters["@left_foot"].Value = player.LeftFoot;
+                command.Parameters["@ability"].Value = player.CurrentAbility;
+                command.Parameters["@potential_ability"].Value = player.PotentialAbility;
+                command.Parameters["@home_reputation"].Value = player.DomesticReputation;
+                command.Parameters["@current_reputation"].Value = player.Reputation;
+                command.Parameters["@world_reputation"].Value = player.WorldReputation;
+                command.Parameters["@club_id"].Value = player.ClubId >= 0
+                    ? GetMapDbId(clubsMapping, iFile, player.ClubId)
                     : DBNull.Value;
-                command.Parameters["@value"].Value = player._staff.Value;
-                command.Parameters["@contract_expiration"].Value = player._contract?.ContractEndDate ?? (object)DBNull.Value;
-                command.Parameters["@wage"].Value = player._staff.Wage;
+                command.Parameters["@value"].Value = player.Value;
+                command.Parameters["@contract_expiration"].Value = player.Contract?.ContractEndDate ?? (object)DBNull.Value;
+                command.Parameters["@wage"].Value = player.Wage;
                 // TODO: check, it's probably wrong
-                command.Parameters["@transfer_status"].Value = player._contract is not null && Enum.IsDefined((TransferStatus)player._contract.TransferStatus)
-                    ? ((TransferStatus)player._contract.TransferStatus).ToString()
+                command.Parameters["@transfer_status"].Value = player.Contract is not null && Enum.IsDefined((TransferStatus)player.Contract.TransferStatus)
+                    ? ((TransferStatus)player.Contract.TransferStatus).ToString()
                     : DBNull.Value;
-                command.Parameters["@manager_job_rel"].Value = player._contract?.ManagerReleaseClause == true
-                    ? player._contract.ReleaseClauseValue
+                command.Parameters["@manager_job_rel"].Value = player.Contract?.ManagerReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@min_fee_rel"].Value = player._contract?.MinimumFeeReleaseClause == true
-                    ? player._contract.ReleaseClauseValue
+                command.Parameters["@min_fee_rel"].Value = player.Contract?.MinimumFeeReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@non_play_rel"].Value = player._contract?.NonPlayingReleaseClause == true
-                    ? player._contract.ReleaseClauseValue
+                command.Parameters["@non_play_rel"].Value = player.Contract?.NonPlayingReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@non_promotion_rel"].Value = player._contract?.NonPromotionReleaseClause == true
-                    ? player._contract.ReleaseClauseValue
+                command.Parameters["@non_promotion_rel"].Value = player.Contract?.NonPromotionReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@relegation_rel"].Value = player._contract?.RelegationReleaseClause == true
-                    ? player._contract.ReleaseClauseValue
+                command.Parameters["@relegation_rel"].Value = player.Contract?.RelegationReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@pos_goalkeeper"].Value = player._player.GK;
-                command.Parameters["@pos_sweeper"].Value = player._player.SW;
-                command.Parameters["@pos_defender"].Value = player._player.DF;
-                command.Parameters["@pos_defensive_midfielder"].Value = player._player.DM;
-                command.Parameters["@pos_midfielder"].Value = player._player.MF;
-                command.Parameters["@pos_attacking_midfielder"].Value = player._player.AM;
-                command.Parameters["@pos_forward"].Value = player._player.ST;
-                command.Parameters["@pos_wingback"].Value = player._player.WingBack;
-                command.Parameters["@pos_free_role"].Value = player._player.FreeRole;
-                command.Parameters["@side_left"].Value = player._player.Left;
-                command.Parameters["@side_right"].Value = player._player.Right;
-                command.Parameters["@side_center"].Value = player._player.Centre;
+                command.Parameters["@pos_goalkeeper"].Value = player.GK;
+                command.Parameters["@pos_sweeper"].Value = player.SW;
+                command.Parameters["@pos_defender"].Value = player.DF;
+                command.Parameters["@pos_defensive_midfielder"].Value = player.DM;
+                command.Parameters["@pos_midfielder"].Value = player.MF;
+                command.Parameters["@pos_attacking_midfielder"].Value = player.AM;
+                command.Parameters["@pos_forward"].Value = player.ST;
+                command.Parameters["@pos_wingback"].Value = player.WingBack;
+                command.Parameters["@pos_free_role"].Value = player.FreeRole;
+                command.Parameters["@side_left"].Value = player.Left;
+                command.Parameters["@side_right"].Value = player.Right;
+                command.Parameters["@side_center"].Value = player.Centre;
 
                 // from extract file
 
@@ -445,16 +446,16 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static bool TryAddSaveIdToMap<T>(
         Dictionary<int, T> dataDict,
-        Func<T, int> getId,
         List<SaveIdMapper> mapping,
         int fileIndex,
         string dataKey,
         int dataId)
+        where T : BaseData
     {
         var match = mapping.FirstOrDefault(x => x.Key.Equals(dataKey, StringComparison.InvariantCultureIgnoreCase));
         if (!match.Equals(default(SaveIdMapper)))
         {
-            match.SavesId.Add(fileIndex, getId(dataDict[dataId]));
+            match.SavesId.Add(fileIndex, dataDict[dataId].Id);
             return true;
         }
         return false;

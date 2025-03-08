@@ -1,6 +1,4 @@
-﻿using FmFileParse.DataClasses;
-
-namespace FmFileParse.Models;
+﻿namespace FmFileParse.Models;
 
 public class Club : BaseData
 {

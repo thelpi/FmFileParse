@@ -123,9 +123,9 @@ internal class ContractConverter
 
 internal class PlayerDataConverter
 {
-    public PlayerData Convert(byte[] source)
+    public Player Convert(byte[] source)
     {
-        var player = new PlayerData();
+        var player = new Player();
 
         player.PlayerId = ByteHandler.GetIntFromBytes(source, 0);
         player.CurrentAbility = ByteHandler.GetShortFromBytes(source, 5);

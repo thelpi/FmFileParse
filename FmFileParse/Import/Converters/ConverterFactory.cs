@@ -30,7 +30,7 @@ namespace FmFileParse.Converters
     {
         public static ICMConverter<T> CreateConverter<T>()
         {
-            if (typeof(T) == typeof(PlayerData))
+            if (typeof(T) == typeof(Player))
             {
                 return (ICMConverter<T>)new PlayerConverter();
             }

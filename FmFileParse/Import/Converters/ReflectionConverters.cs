@@ -62,11 +62,11 @@ internal class NationTupleConverter : ITupleConverter<Country>
     }
 }
 
-internal class PlayerConverter : ICMConverter<PlayerData>
+internal class PlayerConverter : ICMConverter<Player>
 {
-    public PlayerData Convert(byte[] source)
+    public Player Convert(byte[] source)
     {
-        var player = new PlayerData();
+        var player = new Player();
         ConverterReflection.SetConversionProperties(player, source);
         return player;
     }

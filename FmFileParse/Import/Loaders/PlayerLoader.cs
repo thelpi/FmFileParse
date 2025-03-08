@@ -25,7 +25,7 @@ namespace FmFileParse
             List<Staff> duplicates = new List<Staff>();
             Dictionary<int, Staff> staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, saveData, out duplicates);
 
-            List<PlayerData> players = GetDataFilePlayerData(savegame);
+            List<Player> players = GetDataFilePlayerData(savegame);
 
             Dictionary<int, Contract> playerContracts = DataFileLoaders.GetDataFileContractDictionary(savegame, saveData);
 
@@ -44,20 +44,39 @@ namespace FmFileParse
         }
 
 
-        private static IEnumerable<Player> ConstructSearchablePlayers(Dictionary<int, Staff> staffDic, List<PlayerData> players, Dictionary<int, Contract> contracts)
+        private static IEnumerable<Player> ConstructSearchablePlayers(Dictionary<int, Staff> staffDic, List<Player> players, Dictionary<int, Contract> contracts)
         {
             foreach (var player in players)
             {
                 if (staffDic.ContainsKey(player.PlayerId))
                 {
                     var staff = staffDic[player.PlayerId];
-                    Contract contract = null;
-                    if (contracts.Keys.Contains(staff.Id))
-                    {
-                        contract = contracts[staff.Id];
-                    }
 
-                    yield return new Player(player, staff, contract);
+                    player.Adaptability = staff.Adaptability;
+                    player.Ambition = staff.Ambition;
+                    player.ClubId = staff.ClubId;
+                    player.CommonNameId = staff.CommonNameId;
+                    player.ContractExpiryDate = staff.ContractExpiryDate;
+                    player.Determination = staff.Determination;
+                    player.DOB = staff.DOB;
+                    player.FirstNameId = staff.FirstNameId;
+                    player.Id = staff.Id;
+                    player.InternationalCaps = staff.InternationalCaps;
+                    player.InternationalGoals = staff.InternationalGoals;
+                    player.Loyalty = staff.Loyalty;
+                    player.NationId = staff.NationId;
+                    player.Pressure = staff.Pressure;
+                    player.Professionalism = staff.Professionalism;
+                    player.SecondaryNationId = staff.SecondaryNationId;
+                    player.SecondNameId = staff.SecondNameId;
+                    player.Sportsmanship = staff.Sportsmanship;
+                    player.StaffPlayerId = staff.StaffPlayerId;
+                    player.Temperament = staff.Temperament;
+                    player.Value = staff.Value;
+                    player.Wage = staff.Wage;
+                    player.Contract = contracts.TryGetValue(staff.Id, out var contract) ? contract : null;
+
+                    yield return player;
                 }
             }
         }
@@ -76,12 +95,12 @@ namespace FmFileParse
             return fileContents;
         }
 
-        private static List<PlayerData> GetDataFilePlayerData(SaveGameFile savegame)
+        private static List<Player> GetDataFilePlayerData(SaveGameFile savegame)
         {
             var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Players);
             var bytes = DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
             var converter = new PlayerDataConverter();
-            var collect = new List<PlayerData>();
+            var collect = new List<Player>();
 
             foreach (var source in bytes)
             {
