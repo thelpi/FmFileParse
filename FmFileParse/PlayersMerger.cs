@@ -5,9 +5,6 @@ namespace FmFileParse;
 
 internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 {
-    private const decimal _useCurrentValueRate = 2 / 3M;
-    private const decimal _minimalFrequenceRate = 1 / 3M;
-
     private readonly int _numberOfSaves = numberOfSaves;
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
     private readonly Action<string> _reportProgress = reportProgress;
@@ -268,7 +265,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         }
 
         // there's not enough data across all files for the player
-        if (allFilePlayerData.Count / (decimal)_numberOfSaves < _minimalFrequenceRate)
+        if (allFilePlayerData.Count / (decimal)_numberOfSaves < Settings.MinPlayerOccurencesRate)
         {
             _reportProgress($"The player '{playerName}' has not enough data to be merged.");
             return;
@@ -281,7 +278,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
             var (value, occurences) = allValues.GetRepresentativeValue();
 
-            if (occurences / (decimal)allFilePlayerData.Count >= _useCurrentValueRate
+            if (occurences / (decimal)allFilePlayerData.Count >= Settings.MinValueOccurenceRate
                 || Settings.UnmergedOnlyColumns.Contains(col))
             {
                 // when there's a common value for the column

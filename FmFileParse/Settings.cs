@@ -14,7 +14,9 @@ internal static class Settings
 
     public const string CsvFileExtension = "csv";
 
-    public const int MaxAttributeRate = 20;
+    public const decimal MinValueOccurenceRate = 2 / 3M;
+
+    public const decimal MinPlayerOccurencesRate = 1 / 3M;
 
     public static readonly string[] StringColumns =
     [
