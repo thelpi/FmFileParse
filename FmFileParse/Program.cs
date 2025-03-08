@@ -24,12 +24,10 @@ if (choice == 1 || choice == 3)
 
     var importer = new DataImporter();
 
-    importer.ClearAllData();
-    importer.ImportCountries(saveFiles[0]);
-    importer.ImportCompetitions(saveFiles[0]);
-    importer.ImportClubs(saveFiles[0]);
-    var notCreatedPlayers = importer.ImportPlayers(saveFiles, csvFiles, x =>
-        Console.WriteLine($"Player {x} created."));
+    var notCreatedPlayers = importer.ProceedToImport(
+        saveFiles,
+        csvFiles,
+        x => Console.WriteLine($"Player {x} created."));
 
     if (notCreatedPlayers.Count > 0)
     {
@@ -43,8 +41,9 @@ if (choice == 1 || choice == 3)
 
 if (choice == 2 || choice == 3)
 {
-    var merger = new PlayersMerger(saveFiles.Length, x =>
-        Console.WriteLine(x.Item2 ? $"[Created] {x.Item1}" : $"[Ignored] {x.Item1}"));
+    var merger = new PlayersMerger(
+        saveFiles.Length,
+        x => Console.WriteLine(x.Item2 ? $"[Created] {x.Item1}" : $"[Ignored] {x.Item1}"));
 
     merger.ProceedToMerge(true);
 }

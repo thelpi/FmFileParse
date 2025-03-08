@@ -5,9 +5,15 @@ using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
-internal class DataImporter()
+internal class DataImporter
 {
     private static readonly string[] SqlColumns = [.. Settings.UnmergedOnlyColumns, .. Settings.CommonSqlColumns];
+
+    // order is important (foreign keys)
+    private static readonly string[] ResetIncrementTables =
+    [
+        "clubs", "competitions", "countries", "countries"
+    ];
 
     private static readonly string[] OrderedCsvColumns =
     [
@@ -32,50 +38,107 @@ internal class DataImporter()
     private readonly Func<MySqlConnection> _getConnection =
         () => new MySqlConnection(Settings.ConnString);
 
-    public void ClearAllData()
+    private readonly Dictionary<string, SaveGameData> _loadedSaveData;
+
+    public DataImporter()
+    {
+        _loadedSaveData = new Dictionary<string, SaveGameData>();
+    }
+
+    public IReadOnlyList<(string, string, Player)> ProceedToImport(
+        string[] saveFilePaths,
+        string[] extractFilePaths,
+        Action<string> sendPlayerCreationReport)
+    {
+        if (saveFilePaths.Length != extractFilePaths.Length)
+        {
+            throw new ArgumentException("Path lists should have the same cardinal.", nameof(extractFilePaths));
+        }
+
+        ClearAllData();
+        var countries = ImportCountries(saveFilePaths);
+        ImportCompetitions(saveFilePaths[0]);
+        ImportClubs(saveFilePaths[0]);
+        return ImportPlayers(saveFilePaths, extractFilePaths, sendPlayerCreationReport);
+    }
+
+    private void ClearAllData()
     {
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
 
-        // note: order of deletion is important!
-
         command.CommandText = "DELETE FROM unmerged_players";
         command.ExecuteNonQuery();
 
-        command.CommandText = "DELETE FROM clubs";
-        command.ExecuteNonQuery();
+        foreach (var table in ResetIncrementTables)
+        {
+            command.CommandText = $"DELETE FROM {table}";
+            command.ExecuteNonQuery();
 
-        command.CommandText = "DELETE FROM competitions";
-        command.ExecuteNonQuery();
-
-        command.CommandText = "DELETE FROM countries";
-        command.ExecuteNonQuery();
+            command.CommandText = $"ALTER TABLE {table} AUTO_INCREMENT = 1";
+            command.ExecuteNonQuery();
+        }
     }
 
-    public void ImportCountries(string saveFilePath)
+    private SaveGameData GetSaveGameDataFromCache(string saveFilePath)
     {
+        if (_loadedSaveData.ContainsKey(saveFilePath))
+        {
+            return _loadedSaveData[saveFilePath];
+        }
+
         var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
+        _loadedSaveData.Add(saveFilePath, data);
+        return data;
+    }
+
+    private List<SaveIdMapper> ImportCountries(string[] saveFilePaths)
+    {
+        var countries = new List<SaveIdMapper>(250);
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
         // TODO: confederation, is_eu
-        command.CommandText = "INSERT INTO countries (id, name, is_eu, confederation_id) " +
-            "VALUES (@id, @name, 0, 1)";
-        command.SetParameter("id", DbType.Int32);
+        command.CommandText = "INSERT INTO countries (name, is_eu, confederation_id) " +
+            "VALUES (@name, 0, 1)";
         command.SetParameter("name", DbType.String);
         command.Prepare();
 
-        foreach (var key in data.Nations.Keys)
+        foreach (var saveFilePath in saveFilePaths)
         {
-            command.Parameters["@id"].Value = data.Nations[key].Id;
-            command.Parameters["@name"].Value = data.Nations[key].Name;
-            command.ExecuteNonQuery();
+            var data = GetSaveGameDataFromCache(saveFilePath);
+
+            foreach (var key in data.Nations.Keys)
+            {
+                var countryMatch = countries.FirstOrDefault(x => x.Key.Equals(data.Nations[key].Name, StringComparison.InvariantCultureIgnoreCase));
+                if (!countryMatch.Equals(default(SaveIdMapper)))
+                {
+                    if (!countryMatch.SavesId.Contains(data.Nations[key].Id))
+                    {
+                        countryMatch.SavesId.Add(data.Nations[key].Id);
+                    }
+                }
+                else
+                {
+                    command.Parameters["@name"].Value = data.Nations[key].Name;
+                    command.ExecuteNonQuery();
+
+                    countries.Add(new SaveIdMapper
+                    {
+                        DbId = (int)command.LastInsertedId,
+                        Key = data.Nations[key].Name,
+                        SavesId = [ data.Nations[key].Id ]
+                    });
+                }
+            }
         }
+
+        return countries;
     }
 
-    public void ImportCompetitions(string saveFilePath)
+    private void ImportCompetitions(string saveFilePath)
     {
         var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
 
@@ -104,7 +167,7 @@ internal class DataImporter()
         }
     }
 
-    public void ImportClubs(string saveFilePath)
+    private void ImportClubs(string saveFilePath)
     {
         var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
 
@@ -139,16 +202,11 @@ internal class DataImporter()
         }
     }
 
-    public IReadOnlyList<(string, string, Player)> ImportPlayers(
+    private IReadOnlyList<(string, string, Player)> ImportPlayers(
         string[] saveFilePaths,
         string[] extractFilePaths,
         Action<string> sendPlayerCreationReport)
     {
-        if (saveFilePaths.Length != extractFilePaths.Length)
-        {
-            throw new ArgumentException("Path lists should have the same cardinal.", nameof(extractFilePaths));
-        }
-
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -299,5 +357,14 @@ internal class DataImporter()
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
+    }
+
+    private readonly struct SaveIdMapper
+    {
+        public string Key { get; init; }
+
+        public int DbId { get; init; }
+
+        public List<int> SavesId { get; init; }
     }
 }

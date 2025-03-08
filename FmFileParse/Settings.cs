@@ -70,4 +70,9 @@ internal static class Settings
     [
         "id", "filename"
     ];
+
+    public static readonly string[] ForeignKeyColumns =
+    [
+        "club_id", "country_id", "secondary_country_id"
+    ];
 }
