@@ -18,7 +18,7 @@ internal static class Settings
 
     public static readonly string[] StringColumns =
     [
-        "filename", "first_name", "last_name", "common_name", "contract_type", "transfer_status", "squad_status"
+        "filename", "first_name", "last_name", "common_name", "transfer_status", "squad_status"
     ];
 
     public static readonly string[] DateColumns =
@@ -54,7 +54,7 @@ internal static class Settings
         // potential & reputation
         "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
         // club related
-        "club_id", "value", "contract_expiration", "contract_type", "wage", "transfer_status", "squad_status",
+        "club_id", "value", "contract_expiration", "wage", "transfer_status", "squad_status",
         // release fee
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
         // positions

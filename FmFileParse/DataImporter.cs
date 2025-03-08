@@ -255,12 +255,6 @@ internal class DataImporter()
                 command.Parameters["@side_center"].Value = player._player.Centre;
 
                 // from extract file
-
-                // TODO get from source
-                command.Parameters["@contract_type"].Value = string.IsNullOrWhiteSpace(csvPlayer[OrderedCsvColumns.IndexOf("contract_type")])
-                    ? DBNull.Value
-                    : csvPlayer[OrderedCsvColumns.IndexOf("contract_type")];
-
                 foreach (var attributeName in Settings.AttributeColumns)
                 {
                     command.Parameters[$"@{attributeName}"].Value = attributeName == "injury_proneness"
