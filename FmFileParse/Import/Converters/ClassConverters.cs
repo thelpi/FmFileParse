@@ -37,7 +37,7 @@ namespace FmFileParse.Converters
             staff.DOB = ByteHandler.GetDateFromBytes(source, 16) ?? new DateTime(1985, 1, 1);
             staff.NationId = ByteHandler.GetIntFromBytes(source, 26);
             staff.SecondaryNationId = ByteHandler.GetIntFromBytes(source, 30);
-            staff.InternationalCaps = ByteHandler.GetByteFromBytes(source, 24);
+            staff.InternationalCaps = ByteHandler.GetByteFromBytes(source, 34);
             staff.InternationalGoals = ByteHandler.GetByteFromBytes(source, 35);
             staff.ContractExpiryDate = ByteHandler.GetDateFromBytes(source, 70);
             staff.Wage = ByteHandler.GetIntFromBytes(source, 78);

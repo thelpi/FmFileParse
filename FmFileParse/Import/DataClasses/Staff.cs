@@ -26,7 +26,7 @@
         [DataFileInfo(30)]
         public int SecondaryNationId { get; set; }
 
-        [DataFileInfo(24)]
+        [DataFileInfo(34)]
         public byte InternationalCaps { get; set; }
 
         [DataFileInfo(35)]
