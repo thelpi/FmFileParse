@@ -32,7 +32,17 @@ public static class SaveGameHandler
         
         LoadGameData(savegame);
 
-        return PlayerLoader.LoadPlayers(savegame);
+        return new SaveGameData
+        {
+            GameDate = savegame.GameDate,
+            FirstNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
+            Surnames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.SecondNames),
+            CommonNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),
+            Nations = DataFileLoaders.GetDataFileNationDictionary(savegame),
+            Clubs = DataFileLoaders.GetDataFileClubDictionary(savegame),
+            Players = DataFileLoaders.GetDataFilePlayerList(savegame),
+            ClubComps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame)
+        };
     }
 
     internal static DataFileFact GetDataFileFact(DataFileType type)
