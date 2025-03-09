@@ -94,40 +94,21 @@ internal class DataImporter(Action<string> reportProgress)
     private List<SaveIdMapper> ImportCountries(
         string[] saveFilePaths)
     {
-        _reportProgress("Countries importation starts...");
-
-        var countries = new List<SaveIdMapper>(250);
+        // TODO: set "is_eu" and "confederation_id" from source and remove the 'countries_backup' table and code related
+        var countries = ImportData(x => x.Nations,
+            saveFilePaths,
+            "countries",
+            new (string, DbType, Func<Country, int, object>)[]
+            {
+                ("name", DbType.String, (d, _) => d.Name),
+                ("is_eu", DbType.Boolean, (d, _) => false),
+                ("confederation_id", DbType.Int32, (d, _) => 1),
+            },
+            (d, _) => d.Name);
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        // TODO: confederation, is_eu...
-        command.CommandText = "INSERT INTO countries (name, is_eu, confederation_id) " +
-            "VALUES (@name, 0, 1)";
-        command.SetParameter("name", DbType.String);
-        command.Prepare();
-
-        var iFile = 0;
-        foreach (var saveFilePath in saveFilePaths)
-        {
-            var data = GetSaveGameDataFromCache(saveFilePath);
-
-            foreach (var key in data.Nations.Keys)
-            {
-                if (!TryAddSaveIdToMap(data.Nations, countries, iFile, data.Nations[key].Name, key))
-                {
-                    command.Parameters["@name"].Value = data.Nations[key].Name;
-                    command.ExecuteNonQuery();
-
-                    countries.Add(BuildSaveMapper(command, data.Nations[key].Name, key, data.Nations, iFile));
-
-                    _reportProgress($"Country '{data.Nations[key].Name}' has been created.");
-                }
-            }
-            iFile++;
-        }
-
-        // TODO ...then remove this section
         command.CommandText = "UPDATE countries SET is_eu = " +
             "(SELECT c.is_eu FROM countries_backup AS c WHERE c.name = countries.name)";
         command.ExecuteNonQuery();
@@ -143,51 +124,17 @@ internal class DataImporter(Action<string> reportProgress)
         string[] saveFilePaths,
         List<SaveIdMapper> countriesMapping)
     {
-        _reportProgress("Competitions importation starts...");
-
-        var competitions = new List<SaveIdMapper>(500);
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "INSERT INTO competitions (name, long_name, acronym, country_id) " +
-            "VALUES (@name, @long_name, @acronym, @country_id)";
-        command.SetParameter("name", DbType.String);
-        command.SetParameter("long_name", DbType.String);
-        command.SetParameter("acronym", DbType.String);
-        command.SetParameter("country_id", DbType.Int32);
-        command.Prepare();
-
-        var iFile = 0;
-        foreach (var saveFilePath in saveFilePaths)
-        {
-            var data = GetSaveGameDataFromCache(saveFilePath);
-
-            foreach (var key in data.ClubComps.Keys)
+        return ImportData(x => x.ClubComps,
+            saveFilePaths,
+            "competitions",
+            new (string, DbType, Func<ClubComp, int, object>)[]
             {
-                var countryId = data.ClubComps[key].NationId >= 0
-                    ? GetMapDbId(countriesMapping, iFile, data.ClubComps[key].NationId)
-                    : -1;
-
-                var competitionKey = string.Concat(data.ClubComps[key].LongName, ";", countryId);
-
-                if (!TryAddSaveIdToMap(data.ClubComps, competitions, iFile, competitionKey, key))
-                {
-                    command.Parameters["@name"].Value = data.ClubComps[key].Name;
-                    command.Parameters["@long_name"].Value = data.ClubComps[key].LongName;
-                    command.Parameters["@acronym"].Value = data.ClubComps[key].Abbreviation;
-                    command.Parameters["@country_id"].Value = countryId == -1 ? DBNull.Value : countryId;
-                    command.ExecuteNonQuery();
-
-                    competitions.Add(BuildSaveMapper(command, competitionKey, key, data.ClubComps, iFile));
-
-                    _reportProgress($"Competition '{data.ClubComps[key].Name}' has been created.");
-                }
-            }
-            iFile++;
-        }
-
-        return competitions;
+                ("name", DbType.String, (d, iFile) => d.Name),
+                ("long_name", DbType.String, (d, iFile) => d.LongName),
+                ("acronym", DbType.String, (d, iFile) => d.Abbreviation),
+                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+            },
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId)));
     }
 
     private List<SaveIdMapper> ImportClubs(
@@ -195,58 +142,18 @@ internal class DataImporter(Action<string> reportProgress)
         List<SaveIdMapper> countriesMapping,
         List<SaveIdMapper> competitionsMapping)
     {
-        _reportProgress("Clubs importation starts...");
-
-        var clubs = new List<SaveIdMapper>(1000);
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "INSERT INTO clubs (name, long_name, country_id, reputation, division_id) " +
-            "VALUES (@name, @long_name, @country_id, @reputation, @division_id)";
-
-        command.SetParameter("name", DbType.String);
-        command.SetParameter("long_name", DbType.String);
-        command.SetParameter("country_id", DbType.Int32);
-        command.SetParameter("reputation", DbType.Int32);
-        command.SetParameter("division_id", DbType.Int32);
-
-        command.Prepare();
-
-        var iFile = 0;
-        foreach (var saveFilePath in saveFilePaths)
-        {
-            var data = GetSaveGameDataFromCache(saveFilePath);
-
-            foreach (var key in data.Clubs.Keys)
+        return ImportData(x => x.Clubs,
+            saveFilePaths,
+            "clubs",
+            new (string, DbType, Func<Club, int, object>)[]
             {
-                var countryId = data.Clubs[key].NationId < 0
-                    ? -1
-                    : GetMapDbId(countriesMapping, iFile, data.Clubs[key].NationId);
-                var divisionId = data.Clubs[key].DivisionId < 0
-                    ? -1
-                    : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
-                var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", divisionId);
-
-                if (!TryAddSaveIdToMap(data.Clubs, clubs, iFile, clubKey, key))
-                {
-                    command.Parameters["@name"].Value = data.Clubs[key].Name;
-                    command.Parameters["@long_name"].Value = data.Clubs[key].LongName;
-                    command.Parameters["@country_id"].Value = countryId == -1 ? DBNull.Value : countryId;
-                    command.Parameters["@reputation"].Value = data.Clubs[key].Reputation;
-                    command.Parameters["@division_id"].Value = divisionId == -1 ? DBNull.Value : divisionId;
-                    command.ExecuteNonQuery();
-
-                    clubs.Add(BuildSaveMapper(command, clubKey, key, data.Clubs, iFile));
-
-                    _reportProgress($"Club '{data.Clubs[key].Name}' has been created.");
-                }
-            }
-
-            iFile++;
-        }
-
-        return clubs;
+                ("name", DbType.String, (d, iFile) => d.Name),
+                ("long_name", DbType.String, (d, iFile) => d.LongName),
+                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+                ("reputation", DbType.Int32, (d, iFile) => d.Reputation),
+                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(competitionsMapping, iFile, d.DivisionId)),
+            },
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId), ";", GetMapDbId(competitionsMapping, iFile, d.DivisionId)));
     }
 
     private void ImportPlayers(
@@ -306,10 +213,8 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
                 command.Parameters["@date_of_birth"].Value = player.DOB;
-                command.Parameters["@country_id"].Value = GetMapDbId(countriesMapping, iFile, player.NationId);
-                command.Parameters["@secondary_country_id"].Value = player.SecondaryNationId >= 0
-                    ? GetMapDbId(countriesMapping, iFile, player.SecondaryNationId)
-                    : DBNull.Value;
+                command.Parameters["@country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.NationId);
+                command.Parameters["@secondary_country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.SecondaryNationId);
                 command.Parameters["@caps"].Value = player.InternationalCaps;
                 command.Parameters["@international_goals"].Value = player.InternationalGoals;
                 command.Parameters["@right_foot"].Value = player.RightFoot;
@@ -319,9 +224,7 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@home_reputation"].Value = player.DomesticReputation;
                 command.Parameters["@current_reputation"].Value = player.Reputation;
                 command.Parameters["@world_reputation"].Value = player.WorldReputation;
-                command.Parameters["@club_id"].Value = player.ClubId >= 0
-                    ? GetMapDbId(clubsMapping, iFile, player.ClubId)
-                    : DBNull.Value;
+                command.Parameters["@club_id"].Value = GetMapDbIdObject(clubsMapping, iFile, player.ClubId);
                 command.Parameters["@value"].Value = player.Value;
                 command.Parameters["@contract_expiration"].Value = player.Contract?.ContractEndDate ?? (object)DBNull.Value;
                 command.Parameters["@wage"].Value = player.Wage;
@@ -371,27 +274,87 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    private static SaveIdMapper BuildSaveMapper<T>(
-        MySqlCommand command,
-        string functionnalKey,
-        int id,
-        Dictionary<int, T> data,
-        int fileIndex)
+    private List<SaveIdMapper> ImportData<T>(
+        Func<SaveGameData, Dictionary<int, T>> sourceDataGet,
+        string[] saveFilePaths,
+        string tableName,
+        (string pName, DbType pType, Func<T, int, object> pValue)[] parameters,
+        Func<T, int, string> buildKey)
         where T : BaseData
     {
-        return new SaveIdMapper
+        _reportProgress($"'{tableName}' importation starts...");
+
+        var mapping = new List<SaveIdMapper>(1000);
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = parameters.Select(x => x.pName).GetInsertQuery(tableName);
+        foreach (var (pName, pType, _) in parameters)
         {
-            DbId = (int)command.LastInsertedId,
-            Key = functionnalKey,
-            SavesId = new Dictionary<int, List<int>>
+            command.SetParameter(pName, pType);
+        }
+        command.Prepare();
+
+        var iFile = 0;
+        foreach (var saveFilePath in saveFilePaths)
+        {
+            var data = GetSaveGameDataFromCache(saveFilePath);
+
+            var sourceData = sourceDataGet(data);
+
+            foreach (var key in sourceData.Keys)
             {
-                { fileIndex, [data[id].Id ] }
+                var functionnalKey = buildKey(sourceData[key], iFile);
+
+                var match = mapping.FirstOrDefault(x => x.Key.Equals(functionnalKey, StringComparison.InvariantCultureIgnoreCase));
+                if (match.Equals(default(SaveIdMapper)))
+                {
+                    foreach (var (pName, _, pValue) in parameters)
+                    {
+                        command.Parameters[$"@{pName}"].Value = pValue(sourceData[key], iFile);
+                    }
+                    command.ExecuteNonQuery();
+
+                    mapping.Add(new SaveIdMapper
+                    {
+                        DbId = (int)command.LastInsertedId,
+                        Key = functionnalKey,
+                        SavesId = new Dictionary<int, List<int>>
+                        {
+                            { iFile, [ sourceData[key].Id ] }
+                        }
+                    });
+
+                    _reportProgress($"'{functionnalKey}' has been created in '{tableName}'.");
+                }
+                else
+                {
+                    if (match.SavesId.TryGetValue(iFile, out var value))
+                    {
+                        value.Add(sourceData[key].Id);
+                    }
+                    else
+                    {
+                        match.SavesId.Add(iFile, [ sourceData[key].Id ]);
+                    }
+                }
             }
-        };
+
+            iFile++;
+        }
+
+        return mapping;
+    }
+
+    private static object GetMapDbIdObject(List<SaveIdMapper> mapping, int fileIndex, int saveId)
+    {
+        var dbId = GetMapDbId(mapping, fileIndex, saveId);
+        return dbId == -1 ? DBNull.Value : dbId;
     }
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
-        => mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex].Contains(saveId)).DbId;
+        => saveId < 0 ? -1 :mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex].Contains(saveId)).DbId;
 
     private static Dictionary<string, string[]> GetDataFromCsvFile(string path)
     {
@@ -425,31 +388,6 @@ internal class DataImporter(Action<string> reportProgress)
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
-    }
-
-    private static bool TryAddSaveIdToMap<T>(
-        Dictionary<int, T> dataDict,
-        List<SaveIdMapper> mapping,
-        int fileIndex,
-        string dataKey,
-        int dataId)
-        where T : BaseData
-    {
-        var match = mapping.FirstOrDefault(x => x.Key.Equals(dataKey, StringComparison.InvariantCultureIgnoreCase));
-        if (match.Equals(default(SaveIdMapper)))
-        {
-            return false;
-        }
-
-        if (match.SavesId.TryGetValue(fileIndex, out var value))
-        {
-            value.Add(dataDict[dataId].Id);
-        }
-        else
-        {
-            match.SavesId.Add(fileIndex, [dataDict[dataId].Id]);
-        }
-        return true;
     }
 
     private readonly struct SaveIdMapper
