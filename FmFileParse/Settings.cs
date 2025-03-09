@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Text;
 
 namespace FmFileParse;
 
@@ -77,4 +78,6 @@ internal static class Settings
     [
         "club_id", "country_id", "secondary_country_id"
     ];
+
+    public static readonly Encoding DefaultEncoding = Encoding.Latin1;
 }

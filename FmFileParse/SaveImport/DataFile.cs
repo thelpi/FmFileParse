@@ -1,22 +1,16 @@
 ﻿namespace FmFileParse.SaveImport;
 
-internal class DataFile
+internal class DataFile(
+    DataFileFact fileFacts,
+    int position,
+    int length)
 {
-    public DataFileFact FileFacts { get; }
+    public DataFileFact FileFacts { get; } = fileFacts ?? new DataFileFact(DataFileType.General, string.Empty, 0, 0);
 
-    public int Position { get; }
+    public int Position { get; } = position;
 
-    public int Length { get; }
-
-    public DataFile(DataFileFact fileFacts, int position, int length)
-    {
-        FileFacts = fileFacts ?? new DataFileFact(DataFileType.General, string.Empty, 0, 0);
-        Position = position;
-        Length = length;
-    }
+    public int Length { get; } = length;
 
     public override string ToString()
-    {
-        return $"{FileFacts.Name} [{FileFacts.Type}] ({Position}/{Length})";
-    }
+        => $"{FileFacts.Name} [{FileFacts.Type}] ({Position}/{Length})";
 }

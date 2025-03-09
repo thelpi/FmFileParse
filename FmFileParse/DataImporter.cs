@@ -32,8 +32,6 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static readonly string[] CsvRowsSeparators = ["\r\n", "\r", "\n"];
 
-    private static readonly Encoding CsvFileEncoding = Encoding.Latin1;
-
     private const char CsvColumnsSeparator = ';';
 
     private readonly Func<MySqlConnection> _getConnection =
@@ -402,7 +400,7 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static Dictionary<string, string[]> GetDataFromCsvFile(string path)
     {
-        using var csvReader = new StreamReader(path, CsvFileEncoding);
+        using var csvReader = new StreamReader(path, Settings.DefaultEncoding);
         var csvContent = csvReader.ReadToEnd();
         var rows = csvContent.Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries);
 
