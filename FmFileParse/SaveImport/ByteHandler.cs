@@ -9,7 +9,7 @@ internal static class ByteHandler
         => BitConverter.ToInt32(bytes.Skip(start).Take(4).ToArray(), 0);
 
     public static string GetStringFromBytes(byte[] bytes, int start, int length = 0)
-        => GetStringFromBytesTerminated(bytes, start, length > 0 ? length : bytes.Length);
+        => Settings.DefaultEncoding.GetString(TrimEnd(bytes.Skip(start).Take(length > 0 ? length : bytes.Length).ToArray()));
 
     public static DateTime? GetDateFromBytes(byte[] bytes, int start)
         => ConvertToDate(bytes.Skip(start).Take(5).ToArray());
@@ -47,12 +47,6 @@ internal static class ByteHandler
         }
 
         return array;
-    }
-
-    private static string GetStringFromBytesTerminated(byte[] bytes, int start, int length)
-    {
-        var lengthBytes = bytes.Skip(start).Take(length).ToArray();
-        return Settings.DefaultEncoding.GetString(TrimEnd(lengthBytes));
     }
 
     private static DateTime? ConvertToDate(byte[] bytes)
