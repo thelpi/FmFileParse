@@ -64,7 +64,6 @@ public class Player : Staff
     [DataFileInfo(59)]
     public byte RightFoot { get; set; }
 
-
     [DataFileInfo(27, IsIntrinsic = false)]
     public byte Acceleration { get; set; }
 
@@ -161,7 +160,6 @@ public class Player : Staff
     [DataFileInfo(64, IsIntrinsic = false)]
     public byte Technique { get; set; }
 
-
     [DataFileInfo(34, IsIntrinsic = false)]
     public byte Corners { get; set; }
 
@@ -185,4 +183,31 @@ public class Player : Staff
 
     [DataFileInfo(66, IsIntrinsic = false)]
     public byte Versatility { get; set; }
+
+    internal void PopulateStaffPropertiers(Staff staff, Contract? contract)
+    {
+        Adaptability = staff.Adaptability;
+        Ambition = staff.Ambition;
+        ClubId = staff.ClubId;
+        CommonNameId = staff.CommonNameId;
+        ContractExpiryDate = staff.ContractExpiryDate;
+        Determination = staff.Determination;
+        DOB = staff.DOB;
+        FirstNameId = staff.FirstNameId;
+        Id = staff.Id;
+        InternationalCaps = staff.InternationalCaps;
+        InternationalGoals = staff.InternationalGoals;
+        Loyalty = staff.Loyalty;
+        NationId = staff.NationId;
+        Pressure = staff.Pressure;
+        Professionalism = staff.Professionalism;
+        SecondaryNationId = staff.SecondaryNationId;
+        SecondNameId = staff.SecondNameId;
+        Sportsmanship = staff.Sportsmanship;
+        StaffPlayerId = staff.StaffPlayerId;
+        Temperament = staff.Temperament;
+        Value = staff.Value;
+        Wage = staff.Wage;
+        Contract = contract;
+    }
 }

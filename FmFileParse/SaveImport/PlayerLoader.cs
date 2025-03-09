@@ -6,8 +6,6 @@ internal static class PlayerLoader
 {
     public static SaveGameData LoadPlayers(SaveGameFile savegame)
     {
-        var saveData = new SaveGameData();
-
         var clubcomps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame);
 
         var firstnames = GetDataFileStringsDictionary(savegame, DataFileType.First_Names);
@@ -20,8 +18,7 @@ internal static class PlayerLoader
 
         var clubs = DataFileLoaders.GetDataFileClubDictionary(savegame);
 
-        var duplicates = new List<Staff>();
-        var staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, out duplicates);
+        var staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, out _);
 
         var players = GetDataFilePlayerData(savegame);
 
@@ -29,16 +26,17 @@ internal static class PlayerLoader
 
         var searchablePlayers = ConstructSearchablePlayers(staffDic, players, playerContracts).ToList();
 
-        saveData.GameDate = savegame.GameDate;
-        saveData.FirstNames = firstnames;
-        saveData.Surnames = secondNames;
-        saveData.CommonNames = commonNames;
-        saveData.Nations = nations;
-        saveData.Clubs = clubs;
-        saveData.Players = searchablePlayers;
-        saveData.ClubComps = clubcomps;
-
-        return saveData;
+        return new SaveGameData
+        {
+            GameDate = savegame.GameDate,
+            FirstNames = firstnames,
+            Surnames = secondNames,
+            CommonNames = commonNames,
+            Nations = nations,
+            Clubs = clubs,
+            Players = searchablePlayers,
+            ClubComps = clubcomps
+        };
     }
 
 
@@ -46,34 +44,9 @@ internal static class PlayerLoader
     {
         foreach (var player in players)
         {
-            if (staffDic.ContainsKey(player.PlayerId))
+            if (staffDic.TryGetValue(player.PlayerId, out var staff))
             {
-                var staff = staffDic[player.PlayerId];
-
-                player.Adaptability = staff.Adaptability;
-                player.Ambition = staff.Ambition;
-                player.ClubId = staff.ClubId;
-                player.CommonNameId = staff.CommonNameId;
-                player.ContractExpiryDate = staff.ContractExpiryDate;
-                player.Determination = staff.Determination;
-                player.DOB = staff.DOB;
-                player.FirstNameId = staff.FirstNameId;
-                player.Id = staff.Id;
-                player.InternationalCaps = staff.InternationalCaps;
-                player.InternationalGoals = staff.InternationalGoals;
-                player.Loyalty = staff.Loyalty;
-                player.NationId = staff.NationId;
-                player.Pressure = staff.Pressure;
-                player.Professionalism = staff.Professionalism;
-                player.SecondaryNationId = staff.SecondaryNationId;
-                player.SecondNameId = staff.SecondNameId;
-                player.Sportsmanship = staff.Sportsmanship;
-                player.StaffPlayerId = staff.StaffPlayerId;
-                player.Temperament = staff.Temperament;
-                player.Value = staff.Value;
-                player.Wage = staff.Wage;
-                player.Contract = contracts.TryGetValue(staff.Id, out var contract) ? contract : null;
-
+                player.PopulateStaffPropertiers(staff, contracts.TryGetValue(staff.Id, out var contract) ? contract : null);
                 yield return player;
             }
         }
