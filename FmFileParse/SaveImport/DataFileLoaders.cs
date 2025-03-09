@@ -4,7 +4,7 @@ namespace FmFileParse.SaveImport;
 
 internal static class DataFileLoaders
 {
-    public static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, SaveGameData gameData, out List<Staff> duplicateStaff)
+    public static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
     {
         var dic = new Dictionary<int, Staff>();
         duplicateStaff = new List<Staff>();
@@ -16,8 +16,8 @@ internal static class DataFileLoaders
         foreach (var item in bytes)
         {
             var staff = converter.Convert(item);
-            staff.Value = (int)(staff.Value * gameData.ValueMultiplier);
-            staff.Wage = (int)(staff.Wage * gameData.ValueMultiplier);
+            staff.Value = (int)(staff.Value * SaveGameData.ValueMultiplier);
+            staff.Wage = (int)(staff.Wage * SaveGameData.ValueMultiplier);
 
             if (staff.StaffPlayerId != -1)
             {
@@ -33,13 +33,13 @@ internal static class DataFileLoaders
         return dic;
     }
 
-    public static Dictionary<int, Contract> GetDataFileContractDictionary(SaveGameFile savegame, SaveGameData gameData)
+    public static Dictionary<int, Contract> GetDataFileContractDictionary(SaveGameFile savegame)
     {
         var dic = new Dictionary<int, Contract>();
         var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Contracts);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
-        var converter = new ContractConverter(gameData);
+        var converter = new ContractConverter();
 
         for (var i = 0; i < bytes.Count; i++)
         {

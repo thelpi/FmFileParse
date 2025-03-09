@@ -21,11 +21,11 @@ internal static class PlayerLoader
         var clubs = DataFileLoaders.GetDataFileClubDictionary(savegame);
 
         var duplicates = new List<Staff>();
-        var staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, saveData, out duplicates);
+        var staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, out duplicates);
 
         var players = GetDataFilePlayerData(savegame);
 
-        var playerContracts = DataFileLoaders.GetDataFileContractDictionary(savegame, saveData);
+        var playerContracts = DataFileLoaders.GetDataFileContractDictionary(savegame);
 
         var searchablePlayers = ConstructSearchablePlayers(staffDic, players, playerContracts).ToList();
 
