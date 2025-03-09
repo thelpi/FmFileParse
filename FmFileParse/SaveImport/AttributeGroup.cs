@@ -1,4 +1,5 @@
-﻿namespace FmFileParse.Models;
+﻿namespace FmFileParse.SaveImport;
+
 public enum AttributeGroup
 {
     Mental,

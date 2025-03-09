@@ -1,4 +1,6 @@
-﻿namespace FmFileParse.Models;
+﻿using FmFileParse.SaveImport;
+
+namespace FmFileParse.Models;
 
 public class Staff : BaseData
 {

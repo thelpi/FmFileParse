@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using System.Text;
-using FmFileParse.DataClasses;
 using FmFileParse.Models;
+using FmFileParse.SaveImport;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -351,10 +351,6 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@value"].Value = player.Value;
                 command.Parameters["@contract_expiration"].Value = player.Contract?.ContractEndDate ?? (object)DBNull.Value;
                 command.Parameters["@wage"].Value = player.Wage;
-                // TODO: check, it's probably wrong
-                command.Parameters["@transfer_status"].Value = player.Contract is not null && Enum.IsDefined((TransferStatus)player.Contract.TransferStatus)
-                    ? ((TransferStatus)player.Contract.TransferStatus).ToString()
-                    : DBNull.Value;
                 command.Parameters["@manager_job_rel"].Value = player.Contract?.ManagerReleaseClause == true
                     ? player.Contract.ReleaseClauseValue
                     : 0;
@@ -382,17 +378,11 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@side_left"].Value = player.Left;
                 command.Parameters["@side_right"].Value = player.Right;
                 command.Parameters["@side_center"].Value = player.Centre;
+                // TODO
+                command.Parameters["@squad_status"].Value = DBNull.Value;
+                command.Parameters["@transfer_status"].Value = DBNull.Value;
 
                 // from extract file
-
-                // TODO: source version is unreliable for now
-                /*command.Parameters["@squad_status"].Value = player._contract is not null && Enum.IsDefined((SquadStatus)player._contract.SquadStatus)
-                    ? ((SquadStatus)player._contract.SquadStatus).ToString()
-                    : DBNull.Value;*/
-                var sourceValue = csvPlayer[OrderedCsvColumns.IndexOf("squad_status")];
-                command.Parameters["@squad_status"].Value = string.IsNullOrWhiteSpace(sourceValue)
-                    ? DBNull.Value
-                    : sourceValue;
 
                 foreach (var attributeName in Settings.AttributeColumns)
                 {

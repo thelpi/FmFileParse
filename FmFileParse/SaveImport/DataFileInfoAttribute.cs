@@ -1,4 +1,4 @@
-﻿namespace FmFileParse.Models;
+﻿namespace FmFileParse.SaveImport;
 
 public class DataFileInfoAttribute : Attribute
 {

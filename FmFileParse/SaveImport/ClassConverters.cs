@@ -1,7 +1,6 @@
-﻿using FmFileParse.DataClasses;
-using FmFileParse.Models;
+﻿using FmFileParse.Models;
 
-namespace FmFileParse.Converters;
+namespace FmFileParse.SaveImport;
 
 internal class NationConverter
 {
@@ -36,13 +35,13 @@ internal class StaffConverter
         staff.Value = ByteHandler.GetIntFromBytes(source, 82);
         staff.ClubId = ByteHandler.GetIntFromBytes(source, 57);
 
-        List<int> playerTests = new List<int>() { 11282, 35425, 70038, 21195, 120511, 16406 };
+        var playerTests = new List<int>() { 11282, 35425, 70038, 21195, 120511, 16406 };
         if (playerTests.Contains(staff.StaffPlayerId))
         {
             var dobBytes = string.Join(", ", source.Skip(16).Take(5));
             var epiryBytes = string.Join(", ", source.Skip(70).Take(5));
         }
-        
+
         staff.Adaptability = ByteHandler.GetByteFromBytes(source, 86);
         staff.Ambition = ByteHandler.GetByteFromBytes(source, 87);
         staff.Determination = ByteHandler.GetByteFromBytes(source, 88);
@@ -51,7 +50,7 @@ internal class StaffConverter
         staff.Professionalism = ByteHandler.GetByteFromBytes(source, 91);
         staff.Sportsmanship = ByteHandler.GetByteFromBytes(source, 92);
         staff.Temperament = ByteHandler.GetByteFromBytes(source, 93);
-        
+
         return staff;
     }
 }
