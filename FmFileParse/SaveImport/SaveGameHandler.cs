@@ -1,6 +1,4 @@
-﻿using FmFileParse.Models;
-
-namespace FmFileParse.SaveImport;
+﻿namespace FmFileParse.SaveImport;
 
 public static class SaveGameHandler
 {
@@ -8,64 +6,36 @@ public static class SaveGameHandler
 
     public static SaveGameData OpenSaveGameIntoMemory(string fileName)
     {
-        var savegame = new SaveGameFile();
-        savegame.FileName = fileName;
-
-        using (var sr = new StreamReader(fileName))
+        var savegame = new SaveGameFile
         {
-            ReadFileHeaders(sr, savegame);
-        }
+            FileName = fileName
+        };
 
+        using var sr = new StreamReader(fileName);
+        ReadFileHeaders(sr, savegame);
+        
         LoadGameData(savegame);
 
         return PlayerLoader.LoadPlayers(savegame);
     }
 
-    public static List<int> GetCountriesInRegion(Dictionary<int, Country> nations, string regionName)
-    {
-        var countryIds = new List<int>();
-        if (string.IsNullOrWhiteSpace(regionName))
-            return countryIds;
-
-        switch (regionName.ToUpper())
-        {
-            case "UK":
-            case "UK & IRELAND":
-                countryIds = GetUKCountries(nations);
-                break;
-
-            case "SCANDINAVIA":
-                countryIds = GetScandiCountries(nations);
-                break;
-
-            case "OCEANIA":
-                countryIds = GetOceaniaCountries(nations);
-                break;
-        }
-
-        return countryIds;
-    }
-
     private static void ReadFileHeaders(StreamReader sr, SaveGameFile savegame)
     {
-        using (var br = new BinaryReader(sr.BaseStream))
+        using var br = new BinaryReader(sr.BaseStream);
+        savegame.IsCompressed = br.ReadInt32() == 4;
+
+        sr.BaseStream.Seek(4, SeekOrigin.Current);
+
+        var blockCount = br.ReadInt32();
+        for (var j = 0; j < blockCount; j++)
         {
-            if (br.ReadInt32() == 4)
-                savegame.IsCompressed = true;
+            var fileHeader = new byte[ByteBlockSize];
+            br.Read(fileHeader, 0, ByteBlockSize);
+            var internalName = ByteHandler.GetStringFromBytes(fileHeader, 8);
 
-            sr.BaseStream.Seek(4, SeekOrigin.Current);
+            var fileFacts = DataFileFacts.GetDataFileFact(internalName);
 
-            var blockCount = br.ReadInt32();
-            for (var j = 0; j < blockCount; j++)
-            {
-                var fileHeader = new byte[ByteBlockSize];
-                br.Read(fileHeader, 0, ByteBlockSize);
-                var internalName = ByteHandler.GetStringFromBytes(fileHeader, 8);
-
-                var fileFacts = DataFileFacts.GetDataFileFact(internalName);
-
-                savegame.DataBlockNameList.Add(new DataFile(fileFacts, ByteHandler.GetIntFromBytes(fileHeader, 0), ByteHandler.GetIntFromBytes(fileHeader, 4)));
-            }
+            savegame.DataBlockNameList.Add(new DataFile(fileFacts, ByteHandler.GetIntFromBytes(fileHeader, 0), ByteHandler.GetIntFromBytes(fileHeader, 4)));
         }
     }
 
@@ -77,38 +47,6 @@ public static class SaveGameHandler
         ByteHandler.GetAllDataFromFile(general, savegame.FileName, fileFacts.DataSize);
 
         var fileData = ByteHandler.GetAllDataFromFile(general, savegame.FileName, fileFacts.DataSize);
-        savegame.GameDate = ByteHandler.GetDateFromBytes(fileData[0], fileFacts.DataSize - 8).Value;
-    }
-
-    private static List<int> GetUKCountries(Dictionary<int, Country> nations)
-    {
-        var countryNames = new List<string>() { "ENGLAND", "SCOTLAND", "WALES", "IRELAND", "REPUBLIC OF IRELAND", "N.IRELAND", "NORTHERN IRELAND" };
-        return PopulateNationIds(countryNames, nations);
-    }
-
-    private static List<int> GetScandiCountries(Dictionary<int, Country> nations)
-    {
-        var countryNames = new List<string>() { "ICELAND", "FINLAND", "NORWAY", "SWEDEN", "DENMARK" };
-        return PopulateNationIds(countryNames, nations);
-    }
-
-    private static List<int> GetOceaniaCountries(Dictionary<int, Country> nations)
-    {
-        var countryNames = new List<string>() { "AUSTRALIA", "FIJI", "SAMOA", "SOLOMON ISLANDS", "VANATU" };
-        return PopulateNationIds(countryNames, nations);
-    }
-
-    private static List<int> PopulateNationIds(List<string> nationNames, Dictionary<int, Country> nations)
-    {
-        var countryIds = new List<int>();
-
-        foreach (var country in nationNames)
-        {
-            var id = nations.Values.FirstOrDefault(n => n.Name.Equals(country, StringComparison.InvariantCultureIgnoreCase))?.Id;
-            if (id != null)
-                countryIds.Add(id.Value);
-        }
-
-        return countryIds;
+        savegame.GameDate = ByteHandler.GetDateFromBytes(fileData[0], fileFacts.DataSize - 8)!.Value;
     }
 }

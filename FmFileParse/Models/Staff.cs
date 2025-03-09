@@ -45,42 +45,19 @@ public class Staff : BaseData
     [DataFileInfo(57)]
     public int ClubId { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Adaptability { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Ambition { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Determination { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Loyalty { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Pressure { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Professionalism { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Sportsmanship { get; set; }
 
-    [AttributeGroup(AttributeGroup.OffField)]
     public byte Temperament { get; set; }
-
-    public bool IsNationality(int nationId)
-    {
-        return NationId == nationId || SecondaryNationId == nationId;
-    }
-
-    public bool IsOverValue(int value)
-    {
-        return value <= Value;
-    }
-
-    public bool IsUnderValue(int value)
-    {
-        return value >= Value;
-    }
 }
