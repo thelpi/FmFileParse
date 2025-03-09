@@ -1,5 +1,4 @@
 ﻿using System.Data;
-using System.Text;
 using FmFileParse.Models;
 using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
@@ -124,9 +123,9 @@ internal class DataImporter(Action<string> reportProgress)
                     {
                         DbId = (int)command.LastInsertedId,
                         Key = data.Nations[key].Name,
-                        SavesId = new Dictionary<int, int>
+                        SavesId = new Dictionary<int, List<int>>
                         {
-                            { iFile, data.Nations[key].Id }
+                            { iFile, [ data.Nations[key].Id ] }
                         }
                     });
 
@@ -192,9 +191,9 @@ internal class DataImporter(Action<string> reportProgress)
                     {
                         DbId = (int)command.LastInsertedId,
                         Key = competitionKey,
-                        SavesId = new Dictionary<int, int>
+                        SavesId = new Dictionary<int, List<int>>
                         {
-                            { iFile, data.ClubComps[key].Id }
+                            { iFile, [ data.ClubComps[key].Id ] }
                         }
                     });
 
@@ -243,7 +242,7 @@ internal class DataImporter(Action<string> reportProgress)
                 var divisionId = data.Clubs[key].DivisionId < 0
                     ? -1
                     : GetMapDbId(competitionsMapping, iFile, data.Clubs[key].DivisionId);
-                var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", data.Clubs[key].Reputation);
+                var clubKey = string.Concat(data.Clubs[key].LongName, ";", countryId, ";", divisionId);
 
                 if (!TryAddSaveIdToMap(data.Clubs, clubs, iFile, clubKey, key))
                 {
@@ -258,9 +257,9 @@ internal class DataImporter(Action<string> reportProgress)
                     {
                         DbId = (int)command.LastInsertedId,
                         Key = clubKey,
-                        SavesId = new Dictionary<int, int>
+                        SavesId = new Dictionary<int, List<int>>
                         {
-                            { iFile, data.Clubs[key].Id }
+                            { iFile, [ data.Clubs[key].Id ] }
                         }
                     });
 
@@ -397,7 +396,7 @@ internal class DataImporter(Action<string> reportProgress)
     }
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
-        => mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex] == saveId).DbId;
+        => mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex].Contains(saveId)).DbId;
 
     private static Dictionary<string, string[]> GetDataFromCsvFile(string path)
     {
@@ -442,12 +441,20 @@ internal class DataImporter(Action<string> reportProgress)
         where T : BaseData
     {
         var match = mapping.FirstOrDefault(x => x.Key.Equals(dataKey, StringComparison.InvariantCultureIgnoreCase));
-        if (!match.Equals(default(SaveIdMapper)))
+        if (match.Equals(default(SaveIdMapper)))
         {
-            match.SavesId.Add(fileIndex, dataDict[dataId].Id);
-            return true;
+            return false;
         }
-        return false;
+
+        if (match.SavesId.TryGetValue(fileIndex, out var value))
+        {
+            value.Add(dataDict[dataId].Id);
+        }
+        else
+        {
+            match.SavesId.Add(fileIndex, [dataDict[dataId].Id]);
+        }
+        return true;
     }
 
     private readonly struct SaveIdMapper
@@ -456,6 +463,8 @@ internal class DataImporter(Action<string> reportProgress)
 
         public int DbId { get; init; }
 
-        public Dictionary<int, int> SavesId { get; init; }
+        // the value of the dictionary SHOULD be a single value
+        // but the club "Torpedo Moscou" is duplicated everytime
+        public Dictionary<int, List<int>> SavesId { get; init; }
     }
 }
