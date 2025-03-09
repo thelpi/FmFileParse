@@ -8,11 +8,11 @@ internal static class PlayerLoader
     {
         var clubcomps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame);
 
-        var firstnames = GetDataFileStringsDictionary(savegame, DataFileType.First_Names);
+        var firstnames = GetDataFileStringsDictionary(savegame, DataFileType.FirstNames);
 
-        var secondNames = GetDataFileStringsDictionary(savegame, DataFileType.Second_Names);
+        var secondNames = GetDataFileStringsDictionary(savegame, DataFileType.SecondNames);
 
-        var commonNames = GetDataFileStringsDictionary(savegame, DataFileType.Common_Names);
+        var commonNames = GetDataFileStringsDictionary(savegame, DataFileType.CommonNames);
 
         var nations = DataFileLoaders.GetDataFileNationDictionary(savegame);
 

@@ -4,13 +4,13 @@ internal enum DataFileType
 {
     Unknown,
     General,
-    First_Names,
-    Second_Names,
-    Common_Names,
+    FirstNames,
+    SecondNames,
+    CommonNames,
     Nations,
     Staff,
     Players,
     Clubs,
-    Club_Comps,
+    ClubComps,
     Contracts
 }

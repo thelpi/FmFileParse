@@ -6,13 +6,13 @@ internal static class DataFileFacts
     {
         var facts = new List<DataFileFact>
         {
-            new(DataFileType.First_Names, "first_names.dat", 60, 50),
-            new(DataFileType.Second_Names, "second_names.dat", 60, 50),
-            new(DataFileType.Common_Names, "common_names.dat", 60, 50),
+            new(DataFileType.FirstNames, "first_names.dat", 60, 50),
+            new(DataFileType.SecondNames, "second_names.dat", 60, 50),
+            new(DataFileType.CommonNames, "common_names.dat", 60, 50),
             new(DataFileType.Staff, "staff.dat", 110, 0),
             new(DataFileType.Players, "player.dat", 70, 0),
             new(DataFileType.Clubs, "club.dat", 581, 0),
-            new(DataFileType.Club_Comps, "club_comp.dat", 107, 0),
+            new(DataFileType.ClubComps, "club_comp.dat", 107, 0),
             new(DataFileType.Nations, "nation.dat", 290, 0),
             new(DataFileType.General, "general.dat", 3952, 0)
         };

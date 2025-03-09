@@ -5,7 +5,7 @@ internal class DataFile(
     int position,
     int length)
 {
-    public DataFileFact FileFacts { get; } = fileFacts ?? new DataFileFact(DataFileType.General, string.Empty, 0, 0);
+    public DataFileFact FileFacts { get; } = fileFacts; // ?? new DataFileFact(DataFileType.General, string.Empty, 0, 0);
 
     public int Position { get; } = position;
 

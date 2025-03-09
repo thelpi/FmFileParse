@@ -67,7 +67,7 @@ internal static class DataFileLoaders
 
     public static Dictionary<int, ClubComp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Club_Comps);
+        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.ClubComps);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, ClubComp>(bytes.Count);
