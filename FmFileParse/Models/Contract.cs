@@ -1,59 +1,67 @@
-﻿using FmFileParse.Models.Internal;
+﻿using FmFileParse.Models.Attributes;
+using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
 public class Contract
 {
+    [DataPosition(0)]
     public int PlayerId { get; set; }
 
+    [DataPosition(16)]
     public DateTime? DateJoined { get; set; }
 
+    [DataPosition(37)]
     public DateTime? ContractStartDate { get; set; }
 
+    [DataPosition(45)]
     public DateTime? ContractEndDate { get; set; }
 
+    [DataPosition(12)]
     public int WagePerWeek { get; set; }
 
+    [DataPosition(16)]
     public int GoalBonus { get; set; }
 
+    [DataPosition(20)]
     public int AssistBonus { get; set; }
 
+    [DataPosition(28)]
     public bool NonPromotionReleaseClause { get; set; }
 
+    [DataPosition(29)]
     public bool MinimumFeeReleaseClause { get; set; }
 
+    [DataPosition(30)]
     public bool NonPlayingReleaseClause { get; set; }
 
+    [DataPosition(31)]
     public bool RelegationReleaseClause { get; set; }
 
+    [DataPosition(32)]
     public bool ManagerReleaseClause { get; set; }
 
+    [DataPosition(33)]
     public int ReleaseClauseValue { get; set; }
 
+    [DataPosition(78)]
     public byte TransferStatus { get; set; }
 
+    [DataPosition(79)]
     public byte SquadStatus { get; set; }
 
     internal static Contract Convert(byte[] source)
     {
-        return new Contract
-        {
-            PlayerId = ByteHandler.GetIntFromBytes(source, 0),
-            WagePerWeek = (int)(ByteHandler.GetIntFromBytes(source, 12) * SaveGameData.ValueMultiplier),
-            GoalBonus = (int)(ByteHandler.GetIntFromBytes(source, 16) * SaveGameData.ValueMultiplier),
-            AssistBonus = (int)(ByteHandler.GetIntFromBytes(source, 20) * SaveGameData.ValueMultiplier),
-            NonPromotionReleaseClause = ByteHandler.GetByteFromBytes(source, 28) == 1,
-            MinimumFeeReleaseClause = ByteHandler.GetByteFromBytes(source, 29) == 1,
-            NonPlayingReleaseClause = ByteHandler.GetByteFromBytes(source, 30) == 1,
-            RelegationReleaseClause = ByteHandler.GetByteFromBytes(source, 31) == 1,
-            ManagerReleaseClause = ByteHandler.GetByteFromBytes(source, 32) == 1,
-            ReleaseClauseValue = (int)(ByteHandler.GetIntFromBytes(source, 33) * SaveGameData.ValueMultiplier),
-            ContractStartDate = ByteHandler.GetDateFromBytes(source, 37),
-            DateJoined = ByteHandler.GetDateFromBytes(source, 16),
-            ContractEndDate = ByteHandler.GetDateFromBytes(source, 45),
-            TransferStatus = ByteHandler.GetByteFromBytes(source, 78),
-            SquadStatus = ByteHandler.GetByteFromBytes(source, 79)
-        };
+        var contract = new Contract();
+
+        DataPositionAttributeParser.SetDataPositionableProperties(contract, source);
+
+        contract.WagePerWeek = (int)(contract.WagePerWeek * SaveGameData.ValueMultiplier);
+        contract.GoalBonus = (int)(contract.GoalBonus * SaveGameData.ValueMultiplier);
+        contract.AssistBonus = (int)(contract.AssistBonus * SaveGameData.ValueMultiplier);
+        contract.ReleaseClauseValue = (int)(contract.ReleaseClauseValue * SaveGameData.ValueMultiplier);
+
+        return contract;
     }
 }

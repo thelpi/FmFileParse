@@ -1,29 +1,31 @@
-﻿using FmFileParse.SaveImport;
+﻿using FmFileParse.Models.Attributes;
+using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
 public class Club : BaseData
 {
+    [DataPosition(4, Length = 50)]
     public string LongName { get; set; } = string.Empty;
 
+    [DataPosition(56, Length = 25)]
     public string Name { get; set; } = string.Empty;
 
+    [DataPosition(83)]
     public int NationId { get; set; }
 
+    [DataPosition(87)]
     public int DivisionId { get; set; }
 
+    [DataPosition(128)]
     public short Reputation { get; set; }
 
     internal static Club Convert(byte[] source)
     {
-        return new Club
-        {
-            Id = ByteHandler.GetIntFromBytes(source, 0),
-            LongName = ByteHandler.GetStringFromBytes(source, 4, 50),
-            Name = ByteHandler.GetStringFromBytes(source, 56, 25),
-            NationId = ByteHandler.GetIntFromBytes(source, 83),
-            DivisionId = ByteHandler.GetIntFromBytes(source, 87),
-            Reputation = ByteHandler.GetShortFromBytes(source, 128)
-        };
+        var club = new Club();
+
+        DataPositionAttributeParser.SetDataPositionableProperties(club, source);
+
+        return club;
     }
 }
