@@ -1,4 +1,5 @@
 ﻿using FmFileParse.Models;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.SaveImport;
 
@@ -53,7 +54,7 @@ internal static class PlayerLoader
 
     private static Dictionary<int, string> GetDataFileStringsDictionary(SaveGameFile savegame, DataFileType type)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == type);
+        var fileFacts = SaveGameHandler.GetDataFileFact(type);
         var fileData = DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var fileContents = new Dictionary<int, string>(fileData.Count);
@@ -67,7 +68,7 @@ internal static class PlayerLoader
 
     private static List<Player> GetDataFilePlayerData(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Players);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Players);
         return DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize)
             .Select(Player.Convert)
             .ToList();

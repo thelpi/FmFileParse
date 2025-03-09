@@ -1,4 +1,5 @@
-﻿using FmFileParse.SaveImport;
+﻿using FmFileParse.Models.Internal;
+using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 

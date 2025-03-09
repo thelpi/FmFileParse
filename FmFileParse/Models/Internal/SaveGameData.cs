@@ -1,6 +1,6 @@
 ﻿using FmFileParse.Models;
 
-namespace FmFileParse.SaveImport;
+namespace FmFileParse.Models.Internal;
 
 public class SaveGameData
 {

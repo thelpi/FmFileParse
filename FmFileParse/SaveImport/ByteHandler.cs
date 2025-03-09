@@ -1,4 +1,6 @@
-﻿namespace FmFileParse.SaveImport;
+﻿using FmFileParse.Models.Internal;
+
+namespace FmFileParse.SaveImport;
 
 internal static class ByteHandler
 {

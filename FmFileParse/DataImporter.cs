@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Text;
 using FmFileParse.Models;
+using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
 using MySql.Data.MySqlClient;
 

@@ -1,4 +1,4 @@
-﻿namespace FmFileParse.SaveImport;
+﻿namespace FmFileParse.Models.Internal;
 
 internal class DataFileHeaderInformation(
     byte additionalHeaderIndicatorPosition,

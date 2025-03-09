@@ -1,4 +1,5 @@
-﻿using FmFileParse.SaveImport;
+﻿using FmFileParse.Models.Internal;
+using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -63,8 +64,8 @@ public class Staff : BaseData
             InternationalCaps = ByteHandler.GetByteFromBytes(source, 34),
             InternationalGoals = ByteHandler.GetByteFromBytes(source, 35),
             ContractExpiryDate = ByteHandler.GetDateFromBytes(source, 70),
-            Wage = ByteHandler.GetIntFromBytes(source, 78),
-            Value = ByteHandler.GetIntFromBytes(source, 82),
+            Wage = (int)(ByteHandler.GetIntFromBytes(source, 78) * SaveGameData.ValueMultiplier),
+            Value = (int)(ByteHandler.GetIntFromBytes(source, 82) * SaveGameData.ValueMultiplier),
             ClubId = ByteHandler.GetIntFromBytes(source, 57),
             Adaptability = ByteHandler.GetByteFromBytes(source, 86),
             Ambition = ByteHandler.GetByteFromBytes(source, 87),

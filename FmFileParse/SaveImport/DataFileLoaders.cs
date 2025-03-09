@@ -1,4 +1,5 @@
 ﻿using FmFileParse.Models;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.SaveImport;
 
@@ -6,7 +7,7 @@ internal static class DataFileLoaders
 {
     public static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Staff);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Staff);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, Staff>(bytes.Count);
@@ -14,9 +15,6 @@ internal static class DataFileLoaders
         foreach (var item in bytes)
         {
             var staff = Staff.Convert(item);
-            staff.Value = (int)(staff.Value * SaveGameData.ValueMultiplier);
-            staff.Wage = (int)(staff.Wage * SaveGameData.ValueMultiplier);
-
             if (staff.StaffPlayerId != -1)
             {
                 if (!dic.TryAdd(staff.StaffPlayerId, staff))
@@ -31,7 +29,7 @@ internal static class DataFileLoaders
 
     public static Dictionary<int, Contract> GetDataFileContractDictionary(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Contracts);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Contracts);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, Contract>(bytes.Count);
@@ -49,7 +47,7 @@ internal static class DataFileLoaders
 
     public static Dictionary<int, Club> GetDataFileClubDictionary(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Clubs);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Clubs);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, Club>(bytes.Count);
@@ -67,7 +65,7 @@ internal static class DataFileLoaders
 
     public static Dictionary<int, ClubComp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.ClubComps);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.ClubComps);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, ClubComp>(bytes.Count);
@@ -85,7 +83,7 @@ internal static class DataFileLoaders
 
     public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
     {
-        var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Nations);
+        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Nations);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, Country>(bytes.Count);
