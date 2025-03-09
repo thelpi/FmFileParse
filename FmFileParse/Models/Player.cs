@@ -1,4 +1,6 @@
-﻿namespace FmFileParse.Models;
+﻿using FmFileParse.SaveImport;
+
+namespace FmFileParse.Models;
 
 public class Player : Staff
 {
@@ -139,6 +141,73 @@ public class Player : Staff
     public byte ThrowIns { get; set; }
 
     public byte Versatility { get; set; }
+
+    internal static Player Convert(byte[] source)
+    {
+        return new Player
+        {
+            PlayerId = ByteHandler.GetIntFromBytes(source, 0),
+            CurrentAbility = ByteHandler.GetShortFromBytes(source, 5),
+            PotentialAbility = ByteHandler.GetShortFromBytes(source, 7),
+            Reputation = ByteHandler.GetShortFromBytes(source, 9),
+            DomesticReputation = ByteHandler.GetShortFromBytes(source, 11),
+            WorldReputation = ByteHandler.GetShortFromBytes(source, 13),
+            GK = ByteHandler.GetByteFromBytes(source, 15),
+            SW = ByteHandler.GetByteFromBytes(source, 16),
+            DF = ByteHandler.GetByteFromBytes(source, 17),
+            DM = ByteHandler.GetByteFromBytes(source, 18),
+            MF = ByteHandler.GetByteFromBytes(source, 19),
+            AM = ByteHandler.GetByteFromBytes(source, 20),
+            ST = ByteHandler.GetByteFromBytes(source, 21),
+            WingBack = ByteHandler.GetByteFromBytes(source, 22),
+            Left = ByteHandler.GetByteFromBytes(source, 24),
+            Right = ByteHandler.GetByteFromBytes(source, 23),
+            Centre = ByteHandler.GetByteFromBytes(source, 25),
+            FreeRole = ByteHandler.GetByteFromBytes(source, 26),
+            Acceleration = ByteHandler.GetByteFromBytes(source, 27),
+            Aggression = ByteHandler.GetByteFromBytes(source, 28),
+            Agility = ByteHandler.GetByteFromBytes(source, 29),
+            Anticipation = ByteHandler.GetByteFromBytes(source, 30, true),
+            Balance = ByteHandler.GetByteFromBytes(source, 31),
+            Bravery = ByteHandler.GetByteFromBytes(source, 32),
+            Consistency = ByteHandler.GetByteFromBytes(source, 33),
+            Corners = ByteHandler.GetByteFromBytes(source, 34),
+            Creativity = ByteHandler.GetByteFromBytes(source, 67, true),
+            Crossing = ByteHandler.GetByteFromBytes(source, 35, true),
+            Decisions = ByteHandler.GetByteFromBytes(source, 36, true),
+            Dirtiness = ByteHandler.GetByteFromBytes(source, 37),
+            Dribbling = ByteHandler.GetByteFromBytes(source, 38, true),
+            Finishing = ByteHandler.GetByteFromBytes(source, 39, true),
+            Flair = ByteHandler.GetByteFromBytes(source, 40),
+            FreeKicks = ByteHandler.GetByteFromBytes(source, 41),
+            Handling = ByteHandler.GetByteFromBytes(source, 42, true),
+            Heading = ByteHandler.GetByteFromBytes(source, 43, true),
+            ImportantMatches = ByteHandler.GetByteFromBytes(source, 44),
+            Influence = ByteHandler.GetByteFromBytes(source, 47),
+            InjuryProneness = ByteHandler.GetByteFromBytes(source, 45),
+            Jumping = ByteHandler.GetByteFromBytes(source, 46),
+            LongShots = ByteHandler.GetByteFromBytes(source, 49, true),
+            Marking = ByteHandler.GetByteFromBytes(source, 50, true),
+            NaturalFitness = ByteHandler.GetByteFromBytes(source, 52),
+            OffTheBall = ByteHandler.GetByteFromBytes(source, 51, true),
+            OneOnOnes = ByteHandler.GetByteFromBytes(source, 53, true),
+            Pace = ByteHandler.GetByteFromBytes(source, 54),
+            Passing = ByteHandler.GetByteFromBytes(source, 55, true),
+            Penalties = ByteHandler.GetByteFromBytes(source, 56, true),
+            Positioning = ByteHandler.GetByteFromBytes(source, 57, true),
+            Reflexes = ByteHandler.GetByteFromBytes(source, 58, true),
+            Stamina = ByteHandler.GetByteFromBytes(source, 60),
+            Strength = ByteHandler.GetByteFromBytes(source, 61),
+            Tackling = ByteHandler.GetByteFromBytes(source, 62, true),
+            Teamwork = ByteHandler.GetByteFromBytes(source, 63),
+            Technique = ByteHandler.GetByteFromBytes(source, 64),
+            ThrowIns = ByteHandler.GetByteFromBytes(source, 65, true),
+            Versatility = ByteHandler.GetByteFromBytes(source, 66),
+            WorkRate = ByteHandler.GetByteFromBytes(source, 68),
+            LeftFoot = ByteHandler.GetByteFromBytes(source, 48),
+            RightFoot = ByteHandler.GetByteFromBytes(source, 59)
+        };
+    }
 
     internal void PopulateStaffPropertiers(Staff staff, Contract? contract)
     {

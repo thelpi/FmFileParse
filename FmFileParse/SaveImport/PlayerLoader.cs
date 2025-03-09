@@ -39,7 +39,6 @@ internal static class PlayerLoader
         };
     }
 
-
     private static IEnumerable<Player> ConstructSearchablePlayers(Dictionary<int, Staff> staffDic, List<Player> players, Dictionary<int, Contract> contracts)
     {
         foreach (var player in players)
@@ -54,10 +53,10 @@ internal static class PlayerLoader
 
     private static Dictionary<int, string> GetDataFileStringsDictionary(SaveGameFile savegame, DataFileType type)
     {
-        var fileContents = new Dictionary<int, string>();
         var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == type);
         var fileData = DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
+        var fileContents = new Dictionary<int, string>(fileData.Count);
         for (var i = 0; i < fileData.Count; i++)
         {
             fileContents.Add(i, ByteHandler.GetStringFromBytes(fileData[i], 0, fileFacts.StringLength));
@@ -69,15 +68,8 @@ internal static class PlayerLoader
     private static List<Player> GetDataFilePlayerData(SaveGameFile savegame)
     {
         var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Players);
-        var bytes = DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-        var converter = new PlayerDataConverter();
-        var collect = new List<Player>();
-
-        foreach (var source in bytes)
-        {
-            collect.Add(converter.Convert(source));
-        }
-
-        return collect;
+        return DataFileLoaders.GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize)
+            .Select(Player.Convert)
+            .ToList();
     }
 }
