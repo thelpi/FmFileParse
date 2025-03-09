@@ -4,10 +4,7 @@ public class Contract
 {
     public int PlayerId { get; set; }
 
-    //16
-    /*
     public DateTime? DateJoined { get; set; }
-    */
 
     public DateTime? ContractStartDate { get; set; }
 

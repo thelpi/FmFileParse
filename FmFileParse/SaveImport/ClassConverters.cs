@@ -105,6 +105,7 @@ internal class ContractConverter
             ManagerReleaseClause = ByteHandler.GetByteFromBytes(source, 32) == 1,
             ReleaseClauseValue = (int)(ByteHandler.GetIntFromBytes(source, 33) * SaveGameData.ValueMultiplier),
             ContractStartDate = ByteHandler.GetDateFromBytes(source, 37),
+            DateJoined = ByteHandler.GetDateFromBytes(source, 16),
             ContractEndDate = ByteHandler.GetDateFromBytes(source, 45),
             TransferStatus = ByteHandler.GetByteFromBytes(source, 78),
             SquadStatus = ByteHandler.GetByteFromBytes(source, 79)

@@ -7,7 +7,7 @@ internal static class DataFileLoaders
     public static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
     {
         var dic = new Dictionary<int, Staff>();
-        duplicateStaff = new List<Staff>();
+        duplicateStaff = [];
         var fileFacts = DataFileFacts.GetDataFileFacts().First(x => x.Type == DataFileType.Staff);
         var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
 
@@ -21,11 +21,9 @@ internal static class DataFileLoaders
 
             if (staff.StaffPlayerId != -1)
             {
-                if (dic.ContainsKey(staff.StaffPlayerId))
-                    duplicateStaff.Add(staff);
-                else
+                if (!dic.TryAdd(staff.StaffPlayerId, staff))
                 {
-                    dic.Add(staff.StaffPlayerId, staff);
+                    duplicateStaff.Add(staff);
                 }
             }
         }
@@ -48,8 +46,7 @@ internal static class DataFileLoaders
 
             if (contract.PlayerId != -1)
             {
-                if (!dic.ContainsKey(contract.PlayerId))
-                    dic.Add(contract.PlayerId, contract);
+                dic.TryAdd(contract.PlayerId, contract);
             }
         }
 
@@ -70,8 +67,7 @@ internal static class DataFileLoaders
 
             if (club.Id != -1)
             {
-                if (!dic.ContainsKey(club.Id))
-                    dic.Add(club.Id, club);
+                dic.TryAdd(club.Id, club);
             }
         }
 
@@ -109,8 +105,7 @@ internal static class DataFileLoaders
 
             if (nation.Id != -1)
             {
-                if (!dic.ContainsKey(nation.Id))
-                    dic.Add(nation.Id, nation);
+                dic.TryAdd(nation.Id, nation);
             }
         }
 

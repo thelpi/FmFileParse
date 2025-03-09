@@ -1,48 +1,33 @@
-﻿using FmFileParse.SaveImport;
-
-namespace FmFileParse.Models;
+﻿namespace FmFileParse.Models;
 
 public class Staff : BaseData
 {
     public Contract? Contract { get; set; }
 
-    [DataFileInfo(97)]
     public int StaffPlayerId { get; set; }
 
-    [DataFileInfo(4)]
     public int FirstNameId { get; set; }
 
-    [DataFileInfo(8)]
     public int SecondNameId { get; set; }
 
-    [DataFileInfo(12)]
     public int CommonNameId { get; set; }
 
-    [DataFileInfo(16)]
     public DateTime DOB { get; set; }
 
-    [DataFileInfo(26)]
     public int NationId { get; set; }
 
-    [DataFileInfo(30)]
     public int SecondaryNationId { get; set; }
 
-    [DataFileInfo(34)]
     public byte InternationalCaps { get; set; }
 
-    [DataFileInfo(35)]
     public byte InternationalGoals { get; set; }
 
-    [DataFileInfo(68)]
     public DateTime? ContractExpiryDate { get; set; }
 
-    [DataFileInfo(78)]
     public int Wage { get; set; }
 
-    [DataFileInfo(82)]
     public int Value { get; set; }
 
-    [DataFileInfo(57)]
     public int ClubId { get; set; }
 
     public byte Adaptability { get; set; }
