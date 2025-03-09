@@ -119,15 +119,7 @@ internal class DataImporter(Action<string> reportProgress)
                     command.Parameters["@name"].Value = data.Nations[key].Name;
                     command.ExecuteNonQuery();
 
-                    countries.Add(new SaveIdMapper
-                    {
-                        DbId = (int)command.LastInsertedId,
-                        Key = data.Nations[key].Name,
-                        SavesId = new Dictionary<int, List<int>>
-                        {
-                            { iFile, [ data.Nations[key].Id ] }
-                        }
-                    });
+                    countries.Add(BuildSaveMapper(command, data.Nations[key].Name, key, data.Nations, iFile));
 
                     _reportProgress($"Country '{data.Nations[key].Name}' has been created.");
                 }
@@ -187,15 +179,7 @@ internal class DataImporter(Action<string> reportProgress)
                     command.Parameters["@country_id"].Value = countryId == -1 ? DBNull.Value : countryId;
                     command.ExecuteNonQuery();
 
-                    competitions.Add(new SaveIdMapper
-                    {
-                        DbId = (int)command.LastInsertedId,
-                        Key = competitionKey,
-                        SavesId = new Dictionary<int, List<int>>
-                        {
-                            { iFile, [ data.ClubComps[key].Id ] }
-                        }
-                    });
+                    competitions.Add(BuildSaveMapper(command, competitionKey, key, data.ClubComps, iFile));
 
                     _reportProgress($"Competition '{data.ClubComps[key].Name}' has been created.");
                 }
@@ -253,15 +237,7 @@ internal class DataImporter(Action<string> reportProgress)
                     command.Parameters["@division_id"].Value = divisionId == -1 ? DBNull.Value : divisionId;
                     command.ExecuteNonQuery();
 
-                    clubs.Add(new SaveIdMapper
-                    {
-                        DbId = (int)command.LastInsertedId,
-                        Key = clubKey,
-                        SavesId = new Dictionary<int, List<int>>
-                        {
-                            { iFile, [ data.Clubs[key].Id ] }
-                        }
-                    });
+                    clubs.Add(BuildSaveMapper(command, clubKey, key, data.Clubs, iFile));
 
                     _reportProgress($"Club '{data.Clubs[key].Name}' has been created.");
                 }
@@ -393,6 +369,25 @@ internal class DataImporter(Action<string> reportProgress)
             }
             iFile++;
         }
+    }
+
+    private static SaveIdMapper BuildSaveMapper<T>(
+        MySqlCommand command,
+        string functionnalKey,
+        int id,
+        Dictionary<int, T> data,
+        int fileIndex)
+        where T : BaseData
+    {
+        return new SaveIdMapper
+        {
+            DbId = (int)command.LastInsertedId,
+            Key = functionnalKey,
+            SavesId = new Dictionary<int, List<int>>
+            {
+                { fileIndex, [data[id].Id ] }
+            }
+        };
     }
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
