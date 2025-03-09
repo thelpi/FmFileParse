@@ -6,102 +6,59 @@ namespace FmFileParse.SaveImport;
 internal static class DataFileLoaders
 {
     public static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Staff);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-
-        var dic = new Dictionary<int, Staff>(bytes.Count);
-        duplicateStaff = [];
-        foreach (var item in bytes)
-        {
-            var staff = Staff.Convert(item);
-            if (staff.StaffPlayerId != -1)
-            {
-                if (!dic.TryAdd(staff.StaffPlayerId, staff))
-                {
-                    duplicateStaff.Add(staff);
-                }
-            }
-        }
-
-        return dic;
-    }
+        => GetDataFileDictionary(savegame, DataFileType.Staff, Staff.Convert, x => x.StaffPlayerId, out duplicateStaff);
 
     public static Dictionary<int, Contract> GetDataFileContractDictionary(SaveGameFile savegame)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Contracts);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-
-        var dic = new Dictionary<int, Contract>(bytes.Count);
-        for (var i = 0; i < bytes.Count; i++)
-        {
-            var contract = Contract.Convert(bytes[i]);
-            if (contract.PlayerId != -1)
-            {
-                dic.TryAdd(contract.PlayerId, contract);
-            }
-        }
-
-        return dic;
-    }
+        => GetDataFileDictionary(savegame, DataFileType.Contracts, Contract.Convert, x => x.PlayerId, out _);
 
     public static Dictionary<int, Club> GetDataFileClubDictionary(SaveGameFile savegame)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Clubs);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-
-        var dic = new Dictionary<int, Club>(bytes.Count);
-        foreach (var item in bytes)
-        {
-            var club = Club.Convert(item);
-            if (club.Id != -1)
-            {
-                dic.TryAdd(club.Id, club);
-            }
-        }
-
-        return dic;
-    }
+        => GetDataFileDictionary(savegame, DataFileType.Clubs, Club.Convert, out _);
 
     public static Dictionary<int, ClubComp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.ClubComps);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-
-        var dic = new Dictionary<int, ClubComp>(bytes.Count);
-        foreach (var item in bytes)
-        {
-            var comp = ClubComp.Convert(item);
-            if (comp.Id != -1)
-            {
-                dic.TryAdd(comp.Id, comp);
-            }
-        }
-
-        return dic;
-    }
+        => GetDataFileDictionary(savegame, DataFileType.ClubComps, ClubComp.Convert, out _);
 
     public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Nations);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
-
-        var dic = new Dictionary<int, Country>(bytes.Count);
-        foreach (var item in bytes)
-        {
-            var nation = Country.Convert(item);
-            if (nation.Id != -1)
-            {
-                dic.TryAdd(nation.Id, nation);
-            }
-        }
-
-        return dic;
-    }
+        => GetDataFileDictionary(savegame, DataFileType.Nations, Country.Convert, out _);
 
     public static List<byte[]> GetDataFileBytes(SaveGameFile savegame, DataFileType fileType, int sizeOfData)
     {
         var dataFile = savegame.DataBlockNameList.First(x => x.FileFacts.Type == fileType);
         return ByteHandler.GetAllDataFromFile(dataFile, savegame.FileName, sizeOfData);
+    }
+
+    private static Dictionary<int, T> GetDataFileDictionary<T>(
+        SaveGameFile savegame,
+        DataFileType type,
+        Func<byte[], T> converter,
+        out List<T> duplicates)
+        where T : BaseData
+        => GetDataFileDictionary(savegame, type, converter, x => x.Id, out duplicates);
+
+    private static Dictionary<int, T> GetDataFileDictionary<T>(
+        SaveGameFile savegame,
+        DataFileType type,
+        Func<byte[], T> converter,
+        Func<T, int> getId,
+        out List<T> duplicates)
+    {
+        duplicates = [];
+
+        var fileFacts = SaveGameHandler.GetDataFileFact(type);
+        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
+
+        var dic = new Dictionary<int, T>(bytes.Count);
+        foreach (var item in bytes)
+        {
+            var data = converter(item);
+            if (getId(data) >= 0)
+            {
+                if (!dic.TryAdd(getId(data), data))
+                {
+                    duplicates.Add(data);
+                }
+            }
+        }
+
+        return dic;
     }
 }

@@ -7,36 +7,19 @@ internal static class PlayerLoader
 {
     public static SaveGameData LoadPlayers(SaveGameFile savegame)
     {
-        var clubcomps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame);
-
-        var firstnames = GetDataFileStringsDictionary(savegame, DataFileType.FirstNames);
-
-        var secondNames = GetDataFileStringsDictionary(savegame, DataFileType.SecondNames);
-
-        var commonNames = GetDataFileStringsDictionary(savegame, DataFileType.CommonNames);
-
-        var nations = DataFileLoaders.GetDataFileNationDictionary(savegame);
-
-        var clubs = DataFileLoaders.GetDataFileClubDictionary(savegame);
-
-        var staffDic = DataFileLoaders.GetDataFileStaffDictionary(savegame, out _);
-
-        var players = GetDataFilePlayerData(savegame);
-
-        var playerContracts = DataFileLoaders.GetDataFileContractDictionary(savegame);
-
-        var searchablePlayers = ConstructSearchablePlayers(staffDic, players, playerContracts).ToList();
-
         return new SaveGameData
         {
             GameDate = savegame.GameDate,
-            FirstNames = firstnames,
-            Surnames = secondNames,
-            CommonNames = commonNames,
-            Nations = nations,
-            Clubs = clubs,
-            Players = searchablePlayers,
-            ClubComps = clubcomps
+            FirstNames = GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
+            Surnames = GetDataFileStringsDictionary(savegame, DataFileType.SecondNames),
+            CommonNames = GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),
+            Nations = DataFileLoaders.GetDataFileNationDictionary(savegame),
+            Clubs = DataFileLoaders.GetDataFileClubDictionary(savegame),
+            Players = ConstructSearchablePlayers(
+                DataFileLoaders.GetDataFileStaffDictionary(savegame, out _),
+                GetDataFilePlayerData(savegame),
+                DataFileLoaders.GetDataFileContractDictionary(savegame)).ToList(),
+            ClubComps = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame)
         };
     }
 
