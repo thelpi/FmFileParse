@@ -54,7 +54,8 @@ internal static class DataFileLoaders
         {
             if (staffDic.TryGetValue(player.PlayerId, out var staff))
             {
-                player.PopulateStaffPropertiers(staff, contracts.TryGetValue(staff.Id, out var contract) ? contract : null);
+                player.Contract = contracts.TryGetValue(staff.Id, out var contract) ? contract : null;
+                player.PopulateStaffPropertiers(staff);
                 yield return player;
             }
         }

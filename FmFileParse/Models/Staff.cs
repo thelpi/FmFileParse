@@ -1,11 +1,14 @@
-﻿using FmFileParse.Models.Attributes;
-using FmFileParse.Models.Internal;
+﻿using System.Reflection;
+using FmFileParse.Models.Attributes;
 using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
 public class Staff : BaseData
 {
+    internal static readonly PropertyInfo[] OverridableProperties =
+        typeof(Staff).GetProperties().Where(p => p.Name != nameof(Contract) && p.CanWrite).ToArray();
+
     public Contract? Contract { get; set; }
 
     [DataPosition(97)]
@@ -76,9 +79,6 @@ public class Staff : BaseData
         var staff = new Staff();
 
         DataPositionAttributeParser.SetDataPositionableProperties(staff, source);
-
-        staff.Value = (int)(staff.Value * SaveGameData.ValueMultiplier);
-        staff.Wage = (int)(staff.Wage * SaveGameData.ValueMultiplier);
 
         return staff;
     }

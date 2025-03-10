@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
@@ -56,11 +55,6 @@ public class Contract
         var contract = new Contract();
 
         DataPositionAttributeParser.SetDataPositionableProperties(contract, source);
-
-        contract.WagePerWeek = (int)(contract.WagePerWeek * SaveGameData.ValueMultiplier);
-        contract.GoalBonus = (int)(contract.GoalBonus * SaveGameData.ValueMultiplier);
-        contract.AssistBonus = (int)(contract.AssistBonus * SaveGameData.ValueMultiplier);
-        contract.ReleaseClauseValue = (int)(contract.ReleaseClauseValue * SaveGameData.ValueMultiplier);
 
         return contract;
     }

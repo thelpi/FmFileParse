@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using FmFileParse.Models;
 using FmFileParse.Models.Attributes;
 
 namespace FmFileParse.SaveImport;
@@ -14,7 +15,7 @@ internal static class DataPositionAttributeParser
 
         foreach (var (p, attr) in propsWithAttr)
         {
-            if (attr is null)
+            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData)))
             {
                 continue;
             }

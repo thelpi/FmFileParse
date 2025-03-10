@@ -1,11 +1,7 @@
-﻿using FmFileParse.Models;
-
-namespace FmFileParse.Models.Internal;
+﻿namespace FmFileParse.Models.Internal;
 
 public class SaveGameData
 {
-    public const decimal ValueMultiplier = 2.5m;
-
     public Dictionary<int, string> FirstNames { get; set; } = [];
 
     public Dictionary<int, string> Surnames { get; set; } = [];
