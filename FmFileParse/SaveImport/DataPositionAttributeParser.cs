@@ -19,8 +19,6 @@ internal static class DataPositionAttributeParser
                 continue;
             }
 
-            var isDateProperty = p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?);
-
             object? propValue = null;
             if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
@@ -30,7 +28,7 @@ internal static class DataPositionAttributeParser
             {
                 propValue = ByteHandler.GetByteFromBytes(binaryContent, attr.StartAt) == 1;
             }
-            else if (isDateProperty)
+            else if (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?))
             {
                 propValue = ByteHandler.GetDateFromBytes(binaryContent, attr.StartAt);
             }
@@ -50,12 +48,6 @@ internal static class DataPositionAttributeParser
             {
                 throw new NotSupportedException("That type of attribute is not managed!");
             }
-
-            propValue ??= isDateProperty
-                ? (DateTime.TryParse(attr.Default?.ToString(), out var dateTime)
-                    ? dateTime
-                    : null)
-                : attr.Default;
 
             p.SetValue(data, propValue);
         }

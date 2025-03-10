@@ -6,8 +6,6 @@ namespace FmFileParse.Models;
 
 public class Staff : BaseData
 {
-    const string DefaultDateOfBirthString = "1985-1-1";
-
     public Contract? Contract { get; set; }
 
     [DataPosition(97)]
@@ -22,7 +20,7 @@ public class Staff : BaseData
     [DataPosition(12)]
     public int CommonNameId { get; set; }
 
-    [DataPosition(16, Default = DefaultDateOfBirthString)]
+    [DataPosition(16)]
     public DateTime DOB { get; set; }
 
     [DataPosition(26)]

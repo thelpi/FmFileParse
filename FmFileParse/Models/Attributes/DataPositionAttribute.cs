@@ -13,9 +13,4 @@ internal class DataPositionAttribute : Attribute
     /// String only
     /// </summary>
     public int Length { get; init; }
-
-    /// <summary>
-    /// For <see cref="DateTime"/>, use a string representation.
-    /// </summary>
-    public object? Default { get; init; }
 }
