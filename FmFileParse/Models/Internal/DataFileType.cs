@@ -12,5 +12,6 @@ internal enum DataFileType
     Players,
     Clubs,
     ClubComps,
-    Contracts
+    Contracts,
+    Confederations
 }

@@ -20,6 +20,9 @@ internal static class DataFileLoaders
     public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
         => GetDataFileDictionary(savegame, DataFileType.Nations, Country.Convert, out _);
 
+    public static Dictionary<int, Confederation> GetDataFileConfederationDictionary(SaveGameFile savegame)
+        => GetDataFileDictionary(savegame, DataFileType.Confederations, Confederation.Convert, out _);
+
     private static List<byte[]> GetDataFileBytes(SaveGameFile savegame, DataFileType fileType, int sizeOfData)
     {
         var dataFile = savegame.DataBlockNameList.First(x => x.FileFacts.Type == fileType);

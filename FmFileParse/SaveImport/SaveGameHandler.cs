@@ -8,6 +8,7 @@ public static class SaveGameHandler
 
     private static readonly List<DataFileFact> _facts =
     [
+        new(DataFileType.Confederations, "continent.dat", 198, 0),
         new(DataFileType.FirstNames, "first_names.dat", 60, 50),
         new(DataFileType.SecondNames, "second_names.dat", 60, 50),
         new(DataFileType.CommonNames, "common_names.dat", 60, 50),
@@ -35,6 +36,7 @@ public static class SaveGameHandler
         return new SaveGameData
         {
             GameDate = savegame.GameDate,
+            Confederations = DataFileLoaders.GetDataFileConfederationDictionary(savegame),
             FirstNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
             Surnames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.SecondNames),
             CommonNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),

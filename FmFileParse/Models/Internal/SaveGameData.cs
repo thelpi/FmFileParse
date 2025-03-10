@@ -14,6 +14,8 @@ public class SaveGameData
 
     public Dictionary<int, ClubComp> ClubComps { get; set; } = [];
 
+    public Dictionary<int, Confederation> Confederations { get; set; } = [];
+
     public List<Player> Players { get; set; } = [];
 
     public DateTime GameDate { get; set; }
