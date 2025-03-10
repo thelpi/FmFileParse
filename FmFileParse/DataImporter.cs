@@ -13,7 +13,7 @@ internal class DataImporter(Action<string> reportProgress)
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
-        "players", "clubs", "competitions", "countries"
+        "players", "clubs", "competitions", "countries", "confederations"
     ];
 
     private static readonly string[] OrderedCsvColumns =
@@ -51,7 +51,8 @@ internal class DataImporter(Action<string> reportProgress)
         }
 
         ClearAllData();
-        var countries = ImportCountries(saveFilePaths);
+        var confederations = ImportConfederations(saveFilePaths);
+        var countries = ImportCountries(saveFilePaths, confederations);
         var competitions = ImportCompetitions(saveFilePaths, countries);
         var clubs = ImportClubs(saveFilePaths, countries, competitions);
         ImportPlayers(saveFilePaths, extractFilePaths, countries, clubs);
@@ -91,10 +92,26 @@ internal class DataImporter(Action<string> reportProgress)
         return data;
     }
 
-    private List<SaveIdMapper> ImportCountries(
+    private List<SaveIdMapper> ImportConfederations(
         string[] saveFilePaths)
     {
-        // TODO: set "is_eu" and "confederation_id" from source and remove the 'countries_backup' table and code related
+        return ImportData(x => x.Confederations,
+            saveFilePaths,
+            "confederations",
+            new (string, DbType, Func<Confederation, int, object>)[]
+            {
+                ("name", DbType.String, (d, _) => d.Name),
+                ("acronym", DbType.String, (d, _) => d.Acronym),
+                ("continent_name", DbType.String, (d, _) => d.ContinentName),
+            },
+            (d, _) => d.Name);
+    }
+
+    private List<SaveIdMapper> ImportCountries(
+        string[] saveFilePaths,
+        List<SaveIdMapper> confederationsMapping)
+    {
+        // TODO: set "is_eu" from source and remove the 'countries_backup' table and code related
         var countries = ImportData(x => x.Nations,
             saveFilePaths,
             "countries",
@@ -102,19 +119,15 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, _) => d.Name),
                 ("is_eu", DbType.Boolean, (d, _) => false),
-                ("confederation_id", DbType.Int32, (d, _) => 1),
+                ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(confederationsMapping, iFile, d.ConfederationId)),
             },
-            (d, _) => d.Name);
+            (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "UPDATE countries SET is_eu = " +
             "(SELECT c.is_eu FROM countries_backup AS c WHERE c.name = countries.name)";
-        command.ExecuteNonQuery();
-
-        command.CommandText = "UPDATE countries SET confederation_id = " +
-            "(SELECT c.confederation_id FROM countries_backup AS c WHERE c.name = countries.name)";
         command.ExecuteNonQuery();
 
         return countries;
