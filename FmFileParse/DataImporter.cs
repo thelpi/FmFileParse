@@ -111,24 +111,16 @@ internal class DataImporter(Action<string> reportProgress)
         string[] saveFilePaths,
         List<SaveIdMapper> confederationsMapping)
     {
-        // TODO: set "is_eu" from source and remove the 'countries_backup' table and code related
         var countries = ImportData(x => x.Nations,
             saveFilePaths,
             "countries",
             new (string, DbType, Func<Country, int, object>)[]
             {
                 ("name", DbType.String, (d, _) => d.Name),
-                ("is_eu", DbType.Boolean, (d, _) => false),
+                ("is_eu", DbType.Boolean, (d, _) => d.IsEu == 2),
                 ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(confederationsMapping, iFile, d.ConfederationId)),
             },
             (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE countries SET is_eu = " +
-            "(SELECT c.is_eu FROM countries_backup AS c WHERE c.name = countries.name)";
-        command.ExecuteNonQuery();
 
         return countries;
     }

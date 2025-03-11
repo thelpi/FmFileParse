@@ -11,6 +11,10 @@ public class Country : BaseData
     [DataPosition(4, Length = 50)]
     public string Name { get; set; } = string.Empty;
 
+    // 2 for EU
+    [DataPosition(127)]
+    public byte IsEu { get; set; }
+
     internal static Country Convert(byte[] source)
     {
         var country = new Country();
