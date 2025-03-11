@@ -15,6 +15,15 @@ public class Country : BaseData
     [DataPosition(127)]
     public byte IsEu { get; set; }
 
+    [DataPosition(83, Length = 3)]
+    public string Acronym { get; set; } = string.Empty;
+
+    [DataPosition(133)]
+    public byte LeagueStandard { get; set; }
+
+    [DataPosition(142)]
+    public short Reputation { get; set; }
+
     internal static Country Convert(byte[] source)
     {
         var country = new Country();

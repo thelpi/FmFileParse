@@ -118,6 +118,9 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, _) => d.Name),
                 ("is_eu", DbType.Boolean, (d, _) => d.IsEu == 2),
+                ("reputation", DbType.Int32, (d, _) => d.Reputation),
+                ("league_standard", DbType.Int32, (d, _) => d.LeagueStandard),
+                ("acronym", DbType.String, (d, _) => d.Acronym),
                 ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(confederationsMapping, iFile, d.ConfederationId)),
             },
             (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
