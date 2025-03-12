@@ -5,13 +5,13 @@ internal enum DataFileType
     Unknown,
     General,
     FirstNames,
-    SecondNames,
+    LastNames,
     CommonNames,
-    Nations,
+    Countries,
     Staff,
     Players,
     Clubs,
-    ClubComps,
+    ClubCompetitions,
     Contracts,
     Confederations
 }

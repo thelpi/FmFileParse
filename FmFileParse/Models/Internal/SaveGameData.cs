@@ -4,15 +4,15 @@ public class SaveGameData
 {
     public Dictionary<int, string> FirstNames { get; set; } = [];
 
-    public Dictionary<int, string> Surnames { get; set; } = [];
+    public Dictionary<int, string> LastNames { get; set; } = [];
 
     public Dictionary<int, string> CommonNames { get; set; } = [];
 
-    public Dictionary<int, Country> Nations { get; set; } = [];
+    public Dictionary<int, Country> Countries { get; set; } = [];
 
     public Dictionary<int, Club> Clubs { get; set; } = [];
 
-    public Dictionary<int, ClubComp> ClubComps { get; set; } = [];
+    public Dictionary<int, ClubCompetition> ClubCompetitions { get; set; } = [];
 
     public Dictionary<int, Confederation> Confederations { get; set; } = [];
 

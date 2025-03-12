@@ -28,7 +28,7 @@ if (choice == 4)
     if (p is not null)
     {
         data.FirstNames.TryGetValue(p.FirstNameId, out var pFirstName);
-        data.Surnames.TryGetValue(p.SecondNameId, out var pLastName);
+        data.LastNames.TryGetValue(p.SecondNameId, out var pLastName);
         data.CommonNames.TryGetValue(p.CommonNameId, out var pCommonName);
 
         var fullName = !string.IsNullOrWhiteSpace(pCommonName) ? pCommonName : string.Concat(pLastName, pFirstName);
@@ -40,7 +40,7 @@ if (choice == 4)
         if (pClub is not null)
         {
             Console.WriteLine($"Club: {pClub.LongName} - Reputation: {pClub.Reputation} - CountryId: {pClub.NationId}");
-            data.ClubComps.TryGetValue(pClub.DivisionId, out var cDivision);
+            data.ClubCompetitions.TryGetValue(pClub.DivisionId, out var cDivision);
             if (cDivision is not null)
             {
                 Console.WriteLine($"Division: {cDivision.Name} - CountryId: {cDivision.NationId}");
@@ -59,7 +59,7 @@ if (choice == 4)
         {
             Console.WriteLine($"No club with id {p.ClubId} found!");
         }
-        data.Nations.TryGetValue(p.NationId, out var pCountry);
+        data.Countries.TryGetValue(p.NationId, out var pCountry);
         if (pCountry is null)
         {
             Console.WriteLine($"No country with id {p.NationId} found!");

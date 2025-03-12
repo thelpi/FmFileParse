@@ -111,7 +111,7 @@ internal class DataImporter(Action<string> reportProgress)
         string[] saveFilePaths,
         List<SaveIdMapper> confederationsMapping)
     {
-        var countries = ImportData(x => x.Nations,
+        var countries = ImportData(x => x.Countries,
             saveFilePaths,
             "countries",
             new (string, DbType, Func<Country, int, object>)[]
@@ -132,10 +132,10 @@ internal class DataImporter(Action<string> reportProgress)
         string[] saveFilePaths,
         List<SaveIdMapper> countriesMapping)
     {
-        return ImportData(x => x.ClubComps,
+        return ImportData(x => x.ClubCompetitions,
             saveFilePaths,
             "competitions",
-            new (string, DbType, Func<ClubComp, int, object>)[]
+            new (string, DbType, Func<ClubCompetition, int, object>)[]
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
@@ -196,7 +196,7 @@ internal class DataImporter(Action<string> reportProgress)
             foreach (var player in data.Players)
             {
                 var firstName = GetCleanDbName(player.FirstNameId, data.FirstNames);
-                var lastName = GetCleanDbName(player.SecondNameId, data.Surnames);
+                var lastName = GetCleanDbName(player.SecondNameId, data.LastNames);
                 var commmonName = GetCleanDbName(player.CommonNameId, data.CommonNames);
 
                 string[] keyParts =

@@ -2,7 +2,7 @@
 
 namespace FmFileParse.Models;
 
-public class ClubComp : BaseData
+public class ClubCompetition : BaseData
 {
     [DataPosition(56, Length = 25)]
     public string Name { get; set; } = string.Empty;

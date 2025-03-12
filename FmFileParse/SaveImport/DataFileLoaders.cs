@@ -14,11 +14,11 @@ internal static class DataFileLoaders
     public static Dictionary<int, Club> GetDataFileClubDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Club>(savegame, DataFileType.Clubs, out _);
 
-    public static Dictionary<int, ClubComp> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<ClubComp>(savegame, DataFileType.ClubComps, out _);
+    public static Dictionary<int, ClubCompetition> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
+        => GetDataFileDictionary<ClubCompetition>(savegame, DataFileType.ClubCompetitions, out _);
 
     public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<Country>(savegame, DataFileType.Nations, out _);
+        => GetDataFileDictionary<Country>(savegame, DataFileType.Countries, out _);
 
     public static Dictionary<int, Confederation> GetDataFileConfederationDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Confederation>(savegame, DataFileType.Confederations, out _);
