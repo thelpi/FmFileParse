@@ -139,10 +139,10 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
-                ("acronym", DbType.String, (d, iFile) => d.Abbreviation),
-                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+                ("acronym", DbType.String, (d, iFile) => d.Acronym),
+                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.CountryId)),
             },
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.CountryId)));
     }
 
     private List<SaveIdMapper> ImportClubs(
@@ -157,11 +157,11 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
-                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+                ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.CountryId)),
                 ("reputation", DbType.Int32, (d, iFile) => d.Reputation),
                 ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(competitionsMapping, iFile, d.DivisionId)),
             },
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId), ";", GetMapDbId(competitionsMapping, iFile, d.DivisionId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.CountryId), ";", GetMapDbId(competitionsMapping, iFile, d.DivisionId)));
     }
 
     private void ImportPlayers(
@@ -196,15 +196,15 @@ internal class DataImporter(Action<string> reportProgress)
             foreach (var player in data.Players)
             {
                 var firstName = GetCleanDbName(player.FirstNameId, data.FirstNames);
-                var lastName = GetCleanDbName(player.SecondNameId, data.LastNames);
+                var lastName = GetCleanDbName(player.LastNameId, data.LastNames);
                 var commmonName = GetCleanDbName(player.CommonNameId, data.CommonNames);
 
                 string[] keyParts =
                 [
                     (commmonName == DBNull.Value ? $"{lastName}, {firstName}" : $"{commmonName}").Trim(),
                     player.WorldReputation.ToString(),
-                    player.Reputation.ToString(),
-                    player.DomesticReputation.ToString(),
+                    player.CurrentReputation.ToString(),
+                    player.HomeReputation.ToString(),
                     player.CurrentAbility.ToString(),
                     player.PotentialAbility.ToString()
                 ];
@@ -220,17 +220,17 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@first_name"].Value = firstName;
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
-                command.Parameters["@date_of_birth"].Value = player.DOB;
-                command.Parameters["@country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.NationId);
-                command.Parameters["@secondary_country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.SecondaryNationId);
+                command.Parameters["@date_of_birth"].Value = player.DateOfBirth;
+                command.Parameters["@country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.CountryId);
+                command.Parameters["@secondary_country_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.SecondaryCountryId);
                 command.Parameters["@caps"].Value = player.InternationalCaps;
                 command.Parameters["@international_goals"].Value = player.InternationalGoals;
                 command.Parameters["@right_foot"].Value = player.RightFoot;
                 command.Parameters["@left_foot"].Value = player.LeftFoot;
                 command.Parameters["@ability"].Value = player.CurrentAbility;
                 command.Parameters["@potential_ability"].Value = player.PotentialAbility;
-                command.Parameters["@home_reputation"].Value = player.DomesticReputation;
-                command.Parameters["@current_reputation"].Value = player.Reputation;
+                command.Parameters["@home_reputation"].Value = player.HomeReputation;
+                command.Parameters["@current_reputation"].Value = player.CurrentReputation;
                 command.Parameters["@world_reputation"].Value = player.WorldReputation;
                 command.Parameters["@club_id"].Value = GetMapDbIdObject(clubsMapping, iFile, player.ClubId);
                 command.Parameters["@value"].Value = player.Value;
@@ -251,18 +251,18 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@relegation_rel"].Value = player.Contract?.RelegationReleaseClause == true
                     ? player.Contract.ReleaseClauseValue
                     : 0;
-                command.Parameters["@pos_goalkeeper"].Value = player.GK;
-                command.Parameters["@pos_sweeper"].Value = player.SW;
-                command.Parameters["@pos_defender"].Value = player.DF;
-                command.Parameters["@pos_defensive_midfielder"].Value = player.DM;
-                command.Parameters["@pos_midfielder"].Value = player.MF;
-                command.Parameters["@pos_attacking_midfielder"].Value = player.AM;
-                command.Parameters["@pos_forward"].Value = player.ST;
-                command.Parameters["@pos_wingback"].Value = player.WingBack;
-                command.Parameters["@pos_free_role"].Value = player.FreeRole;
-                command.Parameters["@side_left"].Value = player.Left;
-                command.Parameters["@side_right"].Value = player.Right;
-                command.Parameters["@side_center"].Value = player.Centre;
+                command.Parameters["@pos_goalkeeper"].Value = player.GoalKeeperPos;
+                command.Parameters["@pos_sweeper"].Value = player.SweeperPos;
+                command.Parameters["@pos_defender"].Value = player.DefenderPos;
+                command.Parameters["@pos_defensive_midfielder"].Value = player.DefensiveMidfielderPos;
+                command.Parameters["@pos_midfielder"].Value = player.MidfielderPos;
+                command.Parameters["@pos_attacking_midfielder"].Value = player.AttackingMidfielderPos;
+                command.Parameters["@pos_forward"].Value = player.StrikerPos;
+                command.Parameters["@pos_wingback"].Value = player.WingBackPos;
+                command.Parameters["@pos_free_role"].Value = player.FreeRolePos;
+                command.Parameters["@side_left"].Value = player.LeftSide;
+                command.Parameters["@side_right"].Value = player.RightSide;
+                command.Parameters["@side_center"].Value = player.CentreSide;
                 // TODO
                 command.Parameters["@squad_status"].Value = DBNull.Value;
                 command.Parameters["@transfer_status"].Value = DBNull.Value;

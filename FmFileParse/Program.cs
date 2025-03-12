@@ -28,22 +28,22 @@ if (choice == 4)
     if (p is not null)
     {
         data.FirstNames.TryGetValue(p.FirstNameId, out var pFirstName);
-        data.LastNames.TryGetValue(p.SecondNameId, out var pLastName);
+        data.LastNames.TryGetValue(p.LastNameId, out var pLastName);
         data.CommonNames.TryGetValue(p.CommonNameId, out var pCommonName);
 
         var fullName = !string.IsNullOrWhiteSpace(pCommonName) ? pCommonName : string.Concat(pLastName, pFirstName);
-        Console.WriteLine($"Name: {fullName} - Ability: {p.CurrentAbility} - WorldRep: {p.WorldReputation} - DateOfBirth: {p.DOB}");
+        Console.WriteLine($"Name: {fullName} - Ability: {p.CurrentAbility} - WorldRep: {p.WorldReputation} - DateOfBirth: {p.DateOfBirth}");
         Console.WriteLine($"Caps: {p.InternationalCaps} - Value: {p.Value} - Adaptability: {p.Adaptability}");
-        Console.WriteLine($"StrykerPos: {p.ST} - Flair: {p.Flair} - Heading: {p.Heading}");
+        Console.WriteLine($"DefenderPos: {p.DefenderPos} - Flair: {p.Flair} - Heading: {p.Heading}");
 
         data.Clubs.TryGetValue(p.ClubId, out var pClub);
         if (pClub is not null)
         {
-            Console.WriteLine($"Club: {pClub.LongName} - Reputation: {pClub.Reputation} - CountryId: {pClub.NationId}");
+            Console.WriteLine($"Club: {pClub.LongName} - Reputation: {pClub.Reputation} - CountryId: {pClub.CountryId}");
             data.ClubCompetitions.TryGetValue(pClub.DivisionId, out var cDivision);
             if (cDivision is not null)
             {
-                Console.WriteLine($"Division: {cDivision.Name} - CountryId: {cDivision.NationId}");
+                Console.WriteLine($"Division: {cDivision.Name} - CountryId: {cDivision.CountryId}");
             }
             else if (pClub.DivisionId >= 0)
             {
@@ -59,10 +59,10 @@ if (choice == 4)
         {
             Console.WriteLine($"No club with id {p.ClubId} found!");
         }
-        data.Countries.TryGetValue(p.NationId, out var pCountry);
+        data.Countries.TryGetValue(p.CountryId, out var pCountry);
         if (pCountry is null)
         {
-            Console.WriteLine($"No country with id {p.NationId} found!");
+            Console.WriteLine($"No country with id {p.CountryId} found!");
         }
         else
         {

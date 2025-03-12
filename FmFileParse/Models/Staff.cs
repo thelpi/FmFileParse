@@ -17,19 +17,19 @@ public class Staff : BaseData
     public int FirstNameId { get; set; }
 
     [DataPosition(8)]
-    public int SecondNameId { get; set; }
+    public int LastNameId { get; set; }
 
     [DataPosition(12)]
     public int CommonNameId { get; set; }
 
     [DataPosition(16)]
-    public DateTime DOB { get; set; }
+    public DateTime DateOfBirth { get; set; }
 
     [DataPosition(26)]
-    public int NationId { get; set; }
+    public int CountryId { get; set; }
 
     [DataPosition(30)]
-    public int SecondaryNationId { get; set; }
+    public int SecondaryCountryId { get; set; }
 
     [DataPosition(34)]
     public byte InternationalCaps { get; set; }

@@ -14,49 +14,49 @@ public class Player : Staff
     public short PotentialAbility { get; set; }
 
     [DataPosition(9)]
-    public short Reputation { get; set; }
+    public short CurrentReputation { get; set; }
 
     [DataPosition(11)]
-    public short DomesticReputation { get; set; }
+    public short HomeReputation { get; set; }
 
     [DataPosition(13)]
     public short WorldReputation { get; set; }
 
     [DataPosition(15)]
-    public byte GK { get; set; }
+    public byte GoalKeeperPos { get; set; }
 
     [DataPosition(16)]
-    public byte SW { get; set; }
+    public byte SweeperPos { get; set; }
 
     [DataPosition(17)]
-    public byte DF { get; set; }
+    public byte DefenderPos { get; set; }
 
     [DataPosition(18)]
-    public byte DM { get; set; }
+    public byte DefensiveMidfielderPos { get; set; }
 
     [DataPosition(19)]
-    public byte MF { get; set; }
+    public byte MidfielderPos { get; set; }
 
     [DataPosition(20)]
-    public byte AM { get; set; }
+    public byte AttackingMidfielderPos { get; set; }
 
     [DataPosition(21)]
-    public byte ST { get; set; }
+    public byte StrikerPos { get; set; }
 
     [DataPosition(22)]
-    public byte WingBack { get; set; }
-
-    [DataPosition(24)]
-    public byte Left { get; set; }
-
-    [DataPosition(23)]
-    public byte Right { get; set; }
-
-    [DataPosition(25)]
-    public byte Centre { get; set; }
+    public byte WingBackPos { get; set; }
 
     [DataPosition(26)]
-    public byte FreeRole { get; set; }
+    public byte FreeRolePos { get; set; }
+
+    [DataPosition(24)]
+    public byte LeftSide { get; set; }
+
+    [DataPosition(23)]
+    public byte RightSide { get; set; }
+
+    [DataPosition(25)]
+    public byte CentreSide { get; set; }
 
     [DataPosition(48)]
     public byte LeftFoot { get; set; }
@@ -130,63 +130,113 @@ public class Player : Staff
     [DataPosition(66)]
     public byte Versatility { get; set; }
 
-    #region Incorrect values
-
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(30)]
     public byte Anticipation { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(67)]
     public byte Creativity { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(35)]
     public byte Crossing { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(36)]
     public byte Decisions { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(38)]
     public byte Dribbling { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(39)]
     public byte Finishing { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(42)]
     public byte Handling { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(43)]
     public byte Heading { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(49)]
     public byte LongShots { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(50)]
     public byte Marking { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(51)]
     public byte OffTheBall { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(53)]
     public byte OneOnOnes { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(55)]
     public byte Passing { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(57)]
     public byte Positioning { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(58)]
     public byte Reflexes { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(62)]
     public byte Tackling { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(56)]
     public byte Penalties { get; set; }
 
+    /// <summary>
+    /// Invalid
+    /// </summary>
     [DataPosition(65)]
     public byte ThrowIns { get; set; }
-
-    #endregion Incorrect values
 
     internal void PopulateStaffPropertiers(Staff staff)
     {

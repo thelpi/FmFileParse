@@ -11,10 +11,10 @@ public class ClubCompetition : BaseData
     public string LongName { get; set; } = string.Empty;
 
     [DataPosition(83, Length = 3)]
-    public string Abbreviation { get; set; } = string.Empty;
+    public string Acronym { get; set; } = string.Empty;
 
     [DataPosition(93)]
-    public int NationId { get; set; }
+    public int CountryId { get; set; }
 
     [DataPosition(82)]
     public byte Reputation { get; set; }
