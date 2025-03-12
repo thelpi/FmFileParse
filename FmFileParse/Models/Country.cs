@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -23,13 +22,4 @@ public class Country : BaseData
 
     [DataPosition(142)]
     public short Reputation { get; set; }
-
-    internal static Country Convert(byte[] source)
-    {
-        var country = new Country();
-
-        DataPositionAttributeParser.SetDataPositionableProperties(country, source);
-
-        return country;
-    }
 }

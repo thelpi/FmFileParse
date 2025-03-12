@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -49,13 +48,4 @@ public class Contract
 
     [DataPosition(79)]
     public byte SquadStatus { get; set; }
-
-    internal static Contract Convert(byte[] source)
-    {
-        var contract = new Contract();
-
-        DataPositionAttributeParser.SetDataPositionableProperties(contract, source);
-
-        return contract;
-    }
 }

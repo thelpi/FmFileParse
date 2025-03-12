@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -188,13 +187,6 @@ public class Player : Staff
     public byte ThrowIns { get; set; }
 
     #endregion Incorrect values
-
-    internal static new Player Convert(byte[] source)
-    {
-        var player = new Player();
-        DataPositionAttributeParser.SetDataPositionableProperties(player, source);
-        return player;
-    }
 
     internal void PopulateStaffPropertiers(Staff staff)
     {

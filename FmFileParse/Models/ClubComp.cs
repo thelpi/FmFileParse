@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -19,13 +18,4 @@ public class ClubComp : BaseData
 
     [DataPosition(82)]
     public byte Reputation { get; set; }
-
-    internal static ClubComp Convert(byte[] source)
-    {
-        var clubComp = new ClubComp();
-
-        DataPositionAttributeParser.SetDataPositionableProperties(clubComp, source);
-
-        return clubComp;
-    }
 }

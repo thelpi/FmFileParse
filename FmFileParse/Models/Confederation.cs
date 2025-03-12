@@ -1,5 +1,4 @@
 ﻿using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -13,13 +12,4 @@ public class Confederation : BaseData
 
     [DataPosition(163, Length = 10)]
     public string Acronym { get; set; } = string.Empty;
-
-    internal static Confederation Convert(byte[] source)
-    {
-        var confederation = new Confederation();
-
-        DataPositionAttributeParser.SetDataPositionableProperties(confederation, source);
-
-        return confederation;
-    }
 }

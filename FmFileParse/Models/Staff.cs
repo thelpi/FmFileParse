@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using FmFileParse.Models.Attributes;
-using FmFileParse.SaveImport;
 
 namespace FmFileParse.Models;
 
@@ -73,13 +72,4 @@ public class Staff : BaseData
 
     [DataPosition(93)]
     public byte Temperament { get; set; }
-
-    internal static Staff Convert(byte[] source)
-    {
-        var staff = new Staff();
-
-        DataPositionAttributeParser.SetDataPositionableProperties(staff, source);
-
-        return staff;
-    }
 }
