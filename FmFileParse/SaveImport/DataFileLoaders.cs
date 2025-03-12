@@ -8,19 +8,19 @@ internal static class DataFileLoaders
     private static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
         => GetDataFileDictionary(savegame, DataFileType.Staff, x => x.StaffPlayerId, out duplicateStaff);
 
-    private static Dictionary<int, Contract> GetDataFileContractDictionary(SaveGameFile savegame)
+    private static Dictionary<int, Contract> GetDataFileContractsDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Contract>(savegame, DataFileType.Contracts, x => x.PlayerId, out _);
 
-    public static Dictionary<int, Club> GetDataFileClubDictionary(SaveGameFile savegame)
+    public static Dictionary<int, Club> GetDataFileClubsDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Club>(savegame, DataFileType.Clubs, out _);
 
-    public static Dictionary<int, ClubCompetition> GetDataFileClubCompetitionDictionary(SaveGameFile savegame)
+    public static Dictionary<int, ClubCompetition> GetDataFileClubCompetitionsDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<ClubCompetition>(savegame, DataFileType.ClubCompetitions, out _);
 
-    public static Dictionary<int, Country> GetDataFileNationDictionary(SaveGameFile savegame)
+    public static Dictionary<int, Country> GetDataFileCountriesDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Country>(savegame, DataFileType.Countries, out _);
 
-    public static Dictionary<int, Confederation> GetDataFileConfederationDictionary(SaveGameFile savegame)
+    public static Dictionary<int, Confederation> GetDataFileConfederationsDictionary(SaveGameFile savegame)
         => GetDataFileDictionary<Confederation>(savegame, DataFileType.Confederations, out _);
 
     private static List<byte[]> GetDataFileBytes(SaveGameFile savegame, DataFileType fileType, int sizeOfData)
@@ -43,12 +43,12 @@ internal static class DataFileLoaders
         return fileContents;
     }
 
-    public static List<Player> GetDataFilePlayerList(SaveGameFile savegame)
+    public static List<Player> GetDataFilePlayersList(SaveGameFile savegame)
     {
         return ConstructSearchablePlayers(
             GetDataFileStaffDictionary(savegame, out _),
-            GetDataFilePlayerData(savegame),
-            GetDataFileContractDictionary(savegame)).ToList();
+            GetDataFilePlayersData(savegame),
+            GetDataFileContractsDictionary(savegame)).ToList();
     }
 
     public static IEnumerable<Player> ConstructSearchablePlayers(Dictionary<int, Staff> staffDic, List<Player> players, Dictionary<int, Contract> contracts)
@@ -64,7 +64,7 @@ internal static class DataFileLoaders
         }
     }
 
-    public static List<Player> GetDataFilePlayerData(SaveGameFile savegame)
+    public static List<Player> GetDataFilePlayersData(SaveGameFile savegame)
     {
         var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Players);
         return GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize)

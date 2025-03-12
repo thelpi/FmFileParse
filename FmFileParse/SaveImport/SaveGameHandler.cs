@@ -36,14 +36,14 @@ public static class SaveGameHandler
         return new SaveGameData
         {
             GameDate = savegame.GameDate,
-            Confederations = DataFileLoaders.GetDataFileConfederationDictionary(savegame),
+            Confederations = DataFileLoaders.GetDataFileConfederationsDictionary(savegame),
             FirstNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
             LastNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.LastNames),
             CommonNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),
-            Countries = DataFileLoaders.GetDataFileNationDictionary(savegame),
-            Clubs = DataFileLoaders.GetDataFileClubDictionary(savegame),
-            Players = DataFileLoaders.GetDataFilePlayerList(savegame),
-            ClubCompetitions = DataFileLoaders.GetDataFileClubCompetitionDictionary(savegame)
+            Countries = DataFileLoaders.GetDataFileCountriesDictionary(savegame),
+            Clubs = DataFileLoaders.GetDataFileClubsDictionary(savegame),
+            Players = DataFileLoaders.GetDataFilePlayersList(savegame),
+            ClubCompetitions = DataFileLoaders.GetDataFileClubCompetitionsDictionary(savegame)
         };
     }
 
