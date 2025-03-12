@@ -17,7 +17,7 @@ internal static class MySqlHelpers
         var pCol = command.CreateParameter();
         pCol.ParameterName = $"@{name}";
         pCol.DbType = type;
-        if (value != null)
+        if (value is not null)
         {
             pCol.Value = value;
         }

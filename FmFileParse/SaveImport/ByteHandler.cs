@@ -76,7 +76,7 @@ internal static class ByteHandler
         var numberOfRecords = dataFile.Length / sizeOfData;
         startReadPosition = dataFile.Position;
 
-        if (dataFile.FileFacts.HeaderOverload != null)
+        if (dataFile.FileFacts.HeaderOverload is not null)
         {
             var header = new byte[dataFile.FileFacts.HeaderOverload.MinimumHeaderLength];
             br.BaseStream.Seek(startReadPosition, SeekOrigin.Begin);
