@@ -1,5 +1,4 @@
 ﻿using System.Data;
-using System.Diagnostics;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -14,9 +13,6 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
     public void ProceedToMerge()
     {
-        var stopWatch = new Stopwatch();
-        stopWatch.Start();
-
         RemoveDataFromPlayersTable();
 
         var writePlayerCmd = PrepareInsertPlayer();
@@ -102,10 +98,6 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         playersCountCmd.Finalize();
         playersByNameCmd.Finalize();
         writePlayerCmd.Finalize();
-
-        stopWatch.Stop();
-
-        Debug.WriteLine($"Total time: {stopWatch.Elapsed.TotalMinutes}");
     }
 
     private void BulkInsertPlayerMergeStatistics(
@@ -336,51 +328,28 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         var colsAndVals = new Dictionary<string, object>(SqlColumns.Length);
         foreach (var col in allFilePlayerData[0].Keys)
         {
-            var allValues = allFilePlayerData.Select(_ => _[col]).ToList();
-
-            var (value, occurences) = allValues.GetRepresentativeValue();
-
             MergeType mergeType;
-
-            if (Settings.UnmergedOnlyColumns.Contains(col))
+            int countValues;
+            object computedValue;
+            if (Settings.DateColumns.Contains(col))
             {
-                colsAndVals.Add(col, value);
-                mergeType = MergeType.NonMergeable;
+                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<DateTime>(allFilePlayerData, col, x => x.Average());
             }
-            else if (occurences / (decimal)allFilePlayerData.Count >= Settings.MinValueOccurenceRate)
+            else if (Settings.StringColumns.Contains(col))
             {
-                // when there's a common value for the column
-                colsAndVals.Add(col, value);
-                mergeType = MergeType.ModeAboveThreshold;
+                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<string>(allFilePlayerData, col, null);
+            }
+            else if (Settings.ForeignKeyColumns.Contains(col))
+            {
+                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<int>(allFilePlayerData, col, null);
             }
             else
             {
-                var neverNullValues = allValues.All(x => x != DBNull.Value);
-                if (neverNullValues && !Settings.DateColumns.Concat(Settings.StringColumns).Contains(col))
-                {
-                    // all the values are integer: proceed to average
-                    colsAndVals.Add(col, Convert.ToInt32(Math.Round(allValues.Select(Convert.ToInt32).Average())));
-                    mergeType = MergeType.Average;
-                }
-                else if (neverNullValues && Settings.DateColumns.Contains(col))
-                {
-                    var day = allValues.Select(x => Convert.ToDateTime(x).Day).GetRepresentativeValue();
-                    var month = allValues.Select(x => Convert.ToDateTime(x).Month).GetRepresentativeValue();
-                    var year = allValues.Select(x => Convert.ToDateTime(x).Year).GetRepresentativeValue();
-
-                    // all the values are date: creates a date from the max occurence of each date part
-                    colsAndVals.Add(col, new DateTime(year.value, month.value, day.value));
-                    mergeType = MergeType.Average;
-                }
-                else
-                {
-                    // takes the most populated value
-                    colsAndVals.Add(col, value);
-                    mergeType = MergeType.ModeBelowThreshold;
-                }
+                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<int>(allFilePlayerData, col, x => (int)Math.Round(x.Average()));
             }
 
-            colsStats.Add((col, allValues.Distinct().Count(), mergeType));
+            colsAndVals.Add(col, computedValue);
+            colsStats.Add((col, countValues, mergeType));
         }
 
         colsAndVals.Add("occurences", allFilePlayerData.Count);
@@ -394,6 +363,57 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         collectedMergeInfo.Add((int)insertPlayerCommand.LastInsertedId, colsStats);
 
         _reportProgress($"The player '{playerName}' has been merged.");
+    }
+
+    private static (object, MergeType, int) CrawlColumnValuesForMerge<T>(
+        List<Dictionary<string, object>> allFilePlayerData,
+        string columnName,
+        Func<IEnumerable<T>, T>? averageFunc)
+    {
+        var counter = new Dictionary<DbType<T>, int>(allFilePlayerData.Count);
+        DbType<T> currentMax = default;
+        var currentMaxCount = 0;
+        var collectedInts = new List<T>(allFilePlayerData.Count);
+        foreach (var singleValue in allFilePlayerData.Select(_ => _[columnName]))
+        {
+            var dbVal = new DbType<T>(singleValue);
+            if (counter.TryGetValue(dbVal, out var value))
+            {
+                counter[dbVal] = value + 1;
+            }
+            else
+            {
+                counter.Add(dbVal, 1);
+            }
+
+            if (currentMaxCount < counter[dbVal])
+            {
+                currentMax = dbVal;
+                currentMaxCount = counter[dbVal];
+            }
+
+            if (!dbVal.IsDbNull)
+            {
+                collectedInts.Add(dbVal.Value);
+            }
+        }
+
+        var aboveThreshold = currentMaxCount / (decimal)allFilePlayerData.Count >= Settings.MinValueOccurenceRate;
+
+        MergeType mergeType;
+        object computedValue;
+        if (averageFunc is not null && !aboveThreshold && !counter.ContainsKey(DbType<T>.DbNull))
+        {
+            computedValue = averageFunc(collectedInts)!;
+            mergeType = MergeType.Average;
+        }
+        else
+        {
+            computedValue = currentMax.GetValue();
+            mergeType = aboveThreshold ? MergeType.ModeAboveThreshold : MergeType.ModeBelowThreshold;
+        }
+
+        return (computedValue, mergeType, counter.Keys.Count);
     }
 
     private static string GetPlayerNameSqlEquality()
