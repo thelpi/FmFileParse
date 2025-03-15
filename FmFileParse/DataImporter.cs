@@ -69,6 +69,9 @@ internal class DataImporter(Action<string> reportProgress)
         command.CommandText = "DELETE FROM unmerged_players";
         command.ExecuteNonQuery();
 
+        command.CommandText = "DELETE FROM players_merge_statistics";
+        command.ExecuteNonQuery();
+
         foreach (var table in ResetIncrementTables)
         {
             command.CommandText = $"DELETE FROM {table}";
