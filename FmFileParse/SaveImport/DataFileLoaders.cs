@@ -68,13 +68,7 @@ internal static class DataFileLoaders
     {
         var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Players);
         return GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize)
-            .Select(x =>
-            {
-                var player = new Player();
-                player.SetDataPositionableProperties(x);
-                player.ComputeAndSetIntrinsicAttributes();
-                return player;
-            })
+            .Select(x => new Player().SetDataPositionableProperties(x).ComputeAndSetIntrinsicAttributes())
             .ToList();
     }
 
@@ -100,8 +94,7 @@ internal static class DataFileLoaders
         var dic = new Dictionary<int, T>(bytes.Count);
         foreach (var item in bytes)
         {
-            var data = new T();
-            data.SetDataPositionableProperties(item);
+            var data = new T().SetDataPositionableProperties(item);
             if (getId(data) >= 0)
             {
                 if (!dic.TryAdd(getId(data), data))

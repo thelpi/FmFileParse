@@ -17,7 +17,7 @@ internal static class IntrinsicAttributeAttributeParser
         .ToArray();
 
     // note: 'CurrentAbility' and 'GoalKeeperPos' must be known beforehand
-    internal static void ComputeAndSetIntrinsicAttributes(this Player player)
+    internal static Player ComputeAndSetIntrinsicAttributes(this Player player)
     {
         foreach (var (property, attribute) in _intrinsicAttributes)
         {
@@ -25,6 +25,7 @@ internal static class IntrinsicAttributeAttributeParser
             var inGameValue = intrinsicValue.IntrisincToInGameAttributeValue(attribute.Type, player.CurrentAbility, player.GoalKeeperPos);
             property.SetValue(player, inGameValue);
         }
+        return player;
     }
 
     private static byte IntrisincToInGameAttributeValue(

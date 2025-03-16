@@ -8,7 +8,7 @@ internal static class DataPositionAttributeParser
 {
     private static readonly Dictionary<Type, List<(PropertyInfo, DataPositionAttribute?, bool)>> _reflectionCache = [];
 
-    internal static void SetDataPositionableProperties<T>(this T data, byte[] binaryContent)
+    internal static T SetDataPositionableProperties<T>(this T data, byte[] binaryContent)
     {
         if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))
         {
@@ -63,5 +63,7 @@ internal static class DataPositionAttributeParser
 
             p.SetValue(data, propValue);
         }
+
+        return data;
     }
 }
