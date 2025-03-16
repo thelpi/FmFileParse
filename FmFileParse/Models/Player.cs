@@ -1,9 +1,38 @@
-﻿using FmFileParse.Models.Attributes;
+﻿using System.Reflection;
+using FmFileParse.Models.Attributes;
 
 namespace FmFileParse.Models;
 
 public class Player : Staff
 {
+    // note: order is important
+    private static readonly string[] _intrinsicProperties =
+    [
+        nameof(Anticipation),
+        nameof(Creativity),
+        nameof(Crossing),
+        nameof(Decisions),
+        nameof(Dribbling),
+        nameof(Finishing),
+        nameof(Heading),
+        nameof(LongShots),
+        nameof(Marking),
+        nameof(OffTheBall),
+        nameof(Passing),
+        nameof(Penalties),
+        nameof(Positioning),
+        nameof(Tackling),
+        nameof(ThrowIns),
+        nameof(Handling),
+        nameof(OneOnOnes),
+        nameof(Reflexes),
+    ];
+
+    internal static readonly PropertyInfo[] IntrinsicAttributeProperties = [.. typeof(Player)
+        .GetProperties()
+        .Where(p => _intrinsicProperties.Contains(p.Name))
+        .OrderBy(p => _intrinsicProperties.IndexOf(p.Name))];
+
     [DataPosition(0)]
     public int PlayerId { get; set; }
 
@@ -130,111 +159,57 @@ public class Player : Staff
     [DataPosition(66)]
     public byte Versatility { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(30)]
     public byte Anticipation { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(67)]
     public byte Creativity { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(35)]
     public byte Crossing { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(36)]
     public byte Decisions { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(38)]
     public byte Dribbling { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(39)]
     public byte Finishing { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(42)]
     public byte Handling { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(43)]
     public byte Heading { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(49)]
     public byte LongShots { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(50)]
     public byte Marking { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(51)]
     public byte OffTheBall { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(53)]
     public byte OneOnOnes { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(55)]
     public byte Passing { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(57)]
     public byte Positioning { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(58)]
     public byte Reflexes { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(62)]
     public byte Tackling { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(56)]
     public byte Penalties { get; set; }
 
-    /// <summary>
-    /// Invalid
-    /// </summary>
     [DataPosition(65)]
     public byte ThrowIns { get; set; }
 

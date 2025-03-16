@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using FmFileParse;
+using FmFileParse.Models;
 using FmFileParse.SaveImport;
 
 Console.WriteLine("1 - data importation");
@@ -104,6 +105,12 @@ static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData da
             {
                 Console.WriteLine("Confederation is not set on the country.");
             }
+        }
+
+        foreach (var intrinsicProperty in Player.IntrinsicAttributeProperties)
+        {
+            var intrinsicPropertyValue = intrinsicProperty.GetValue(p);
+            Console.WriteLine($"{intrinsicProperty.Name}: {intrinsicPropertyValue}");
         }
     }
     else

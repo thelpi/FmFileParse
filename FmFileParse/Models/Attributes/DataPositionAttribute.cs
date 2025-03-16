@@ -1,13 +1,9 @@
 ﻿namespace FmFileParse.Models.Attributes;
 
-internal class DataPositionAttribute : Attribute
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+internal class DataPositionAttribute(int startAt) : Attribute
 {
-    public DataPositionAttribute(int startAt)
-    {
-        StartAt = startAt;
-    }
-
-    public int StartAt { get; }
+    public int StartAt { get; } = startAt;
 
     /// <summary>
     /// String only
