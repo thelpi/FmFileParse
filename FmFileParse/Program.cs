@@ -30,11 +30,9 @@ if (choice == 4)
 
 if (choice == 1 || choice == 3)
 {
-    var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
-
     var importer = new DataImporter(Console.WriteLine);
 
-    importer.ProceedToImport(saveFiles, csvFiles);
+    importer.ProceedToImport(saveFiles);
 }
 
 if (choice == 2 || choice == 3)

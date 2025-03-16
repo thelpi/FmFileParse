@@ -10,29 +10,13 @@ internal class DataImporter(Action<string> reportProgress)
 {
     private static readonly string[] SqlColumns = [.. Settings.UnmergedOnlyColumns, .. Settings.CommonSqlColumns];
 
+    private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
+
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
         "players", "clubs", "competitions", "countries", "confederations"
     ];
-
-    private static readonly string[] OrderedCsvColumns =
-    [
-        "name", "nation", "club", "position", "ability", "potential_ability", "age", "value", "scout_rating",
-        "acceleration", "adaptability", "aggression", "agility", "ambition", "anticipation", "balance", "bravery", "caps",
-        "club_reputation", "consistency", "contract_expiration", "contract_type", "corners", "creativity", "crossing",
-        "current_reputation", "date_of_birth", "decisions", "determination", "dirtiness", "dribbling", "finishing", "flair",
-        "handling", "heading", "home_reputation", "important_matches", "influence", "injury_proneness", "international_goals",
-        "jumping", "left_foot", "long_shots", "loyalty", "manager_job_rel", "marking", "min_fee_rel", "natural_fitness",
-        "non_play_rel", "non_promotion_rel", "off_the_ball", "one_on_ones", "pace", "passing", "penalties", "positioning",
-        "pressure", "professionalism", "reflexes", "relegation_rel", "right_foot", "set_pieces", "sportsmanship", "squad_status",
-        "stamina", "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "transfer_status", "versatility",
-        "wage", "work_rate", "world_reputation"
-    ];
-
-    private static readonly string[] CsvRowsSeparators = ["\r\n", "\r", "\n"];
-
-    private const char CsvColumnsSeparator = ';';
 
     private readonly Func<MySqlConnection> _getConnection =
         () => new MySqlConnection(Settings.ConnString);
@@ -40,22 +24,14 @@ internal class DataImporter(Action<string> reportProgress)
     private readonly Dictionary<string, SaveGameData> _loadedSaveData = [];
     private readonly Action<string> _reportProgress = reportProgress;
 
-    public void ProceedToImport(
-        string[] saveFilePaths,
-        string[] extractFilePaths)
+    public void ProceedToImport(string[] saveFilePaths)
     {
-        if (saveFilePaths.Length != extractFilePaths.Length)
-        {
-            _reportProgress("Path lists should have the same cardinal; process interrupted.");
-            return;
-        }
-
         ClearAllData();
         var confederations = ImportConfederations(saveFilePaths);
         var countries = ImportCountries(saveFilePaths, confederations);
         var competitions = ImportCompetitions(saveFilePaths, countries);
         var clubs = ImportClubs(saveFilePaths, countries, competitions);
-        ImportPlayers(saveFilePaths, extractFilePaths, countries, clubs);
+        ImportPlayers(saveFilePaths, countries, clubs);
     }
 
     private void ClearAllData()
@@ -171,7 +147,6 @@ internal class DataImporter(Action<string> reportProgress)
 
     private void ImportPlayers(
         string[] saveFilePaths,
-        string[] extractFilePaths,
         List<SaveIdMapper> countriesMapping,
         List<SaveIdMapper> clubsMapping)
     {
@@ -196,8 +171,6 @@ internal class DataImporter(Action<string> reportProgress)
 
             var data = GetSaveGameDataFromCache(saveFilePath);
 
-            var csvData = GetDataFromCsvFile(extractFilePaths[iFile]);
-
             foreach (var player in data.Players)
             {
                 var firstName = GetCleanDbName(player.FirstNameId, data.FirstNames);
@@ -213,12 +186,6 @@ internal class DataImporter(Action<string> reportProgress)
                     player.CurrentAbility.ToString(),
                     player.PotentialAbility.ToString()
                 ];
-
-                if (!csvData.TryGetValue(string.Join(CsvColumnsSeparator, keyParts), out var csvPlayer))
-                {
-                    _reportProgress($"Player '{keyParts[0]}' has no CSV counterpart for file {fileName}.");
-                    continue;
-                }
 
                 command.Parameters["@id"].Value = player.Id;
                 command.Parameters["@filename"].Value = fileName;
@@ -272,12 +239,54 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@squad_status"].Value = DBNull.Value;
                 command.Parameters["@transfer_status"].Value = DBNull.Value;
 
-                // from extract file
-
-                foreach (var attributeName in Settings.AttributeColumns)
-                {
-                    command.Parameters[$"@{attributeName}"].Value = csvPlayer[OrderedCsvColumns.IndexOf(attributeName)];
-                }
+                command.Parameters["@anticipation"].Value = player.Anticipation;
+                command.Parameters["@acceleration"].Value = player.Acceleration;
+                command.Parameters["@adaptability"].Value = player.Adaptability;
+                command.Parameters["@aggression"].Value = player.Aggression;
+                command.Parameters["@agility"].Value = player.Agility;
+                command.Parameters["@ambition"].Value = player.Ambition;
+                command.Parameters["@balance"].Value = player.Balance;
+                command.Parameters["@bravery"].Value = player.Bravery;
+                command.Parameters["@consistency"].Value = player.Consistency;
+                command.Parameters["@corners"].Value = player.Corners;
+                command.Parameters["@creativity"].Value = player.Creativity;
+                command.Parameters["@crossing"].Value = player.Crossing;
+                command.Parameters["@decisions"].Value = player.Decisions;
+                command.Parameters["@determination"].Value = player.Determination;
+                command.Parameters["@dirtiness"].Value = player.Dirtiness;
+                command.Parameters["@dribbling"].Value = player.Dribbling;
+                command.Parameters["@finishing"].Value = player.Finishing;
+                command.Parameters["@flair"].Value = player.Flair;
+                command.Parameters["@handling"].Value = player.Handling;
+                command.Parameters["@heading"].Value = player.Heading;
+                command.Parameters["@important_matches"].Value = player.ImportantMatches;
+                command.Parameters["@influence"].Value = player.Influence;
+                command.Parameters["@injury_proneness"].Value = player.InjuryProneness;
+                command.Parameters["@jumping"].Value = player.Jumping;
+                command.Parameters["@long_shots"].Value = player.LongShots;
+                command.Parameters["@loyalty"].Value = player.Loyalty;
+                command.Parameters["@marking"].Value = player.Marking;
+                command.Parameters["@natural_fitness"].Value = player.NaturalFitness;
+                command.Parameters["@off_the_ball"].Value = player.OffTheBall;
+                command.Parameters["@one_on_ones"].Value = player.OneOnOnes;
+                command.Parameters["@pace"].Value = player.Pace;
+                command.Parameters["@passing"].Value = player.Passing;
+                command.Parameters["@penalties"].Value = player.Penalties;
+                command.Parameters["@positioning"].Value = player.Positioning;
+                command.Parameters["@pressure"].Value = player.Pressure;
+                command.Parameters["@professionalism"].Value = player.Professionalism;
+                command.Parameters["@reflexes"].Value = player.Reflexes;
+                command.Parameters["@set_pieces"].Value = player.FreeKicks;
+                command.Parameters["@sportsmanship"].Value = player.Sportsmanship;
+                command.Parameters["@stamina"].Value = player.Stamina;
+                command.Parameters["@strength"].Value = player.Strength;
+                command.Parameters["@tackling"].Value = player.Tackling;
+                command.Parameters["@teamwork"].Value = player.Teamwork;
+                command.Parameters["@technique"].Value = player.Technique;
+                command.Parameters["@temperament"].Value = player.Temperament;
+                command.Parameters["@throw_ins"].Value = player.ThrowIns;
+                command.Parameters["@versatility"].Value = player.Versatility;
+                command.Parameters["@work_rate"].Value = player.WorkRate;
 
                 command.ExecuteNonQuery();
 
@@ -369,37 +378,11 @@ internal class DataImporter(Action<string> reportProgress)
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
         => saveId < 0 ? -1 :mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex].Contains(saveId)).DbId;
 
-    private static Dictionary<string, string[]> GetDataFromCsvFile(string path)
-    {
-        using var csvReader = new StreamReader(path, Settings.DefaultEncoding);
-        var csvContent = csvReader.ReadToEnd();
-        var rows = csvContent.Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        var playerKeys = new Dictionary<string, string[]>(rows.Length);
-
-        // note: skips header row
-        foreach (var row in rows.Skip(1))
-        {
-            var columns = row.Split(CsvColumnsSeparator);
-            string[] keyParts =
-            [
-                columns[OrderedCsvColumns.IndexOf("name")].Trim(),
-                columns[OrderedCsvColumns.IndexOf("world_reputation")],
-                columns[OrderedCsvColumns.IndexOf("home_reputation")],
-                columns[OrderedCsvColumns.IndexOf("current_reputation")],
-                columns[OrderedCsvColumns.IndexOf("ability")],
-                columns[OrderedCsvColumns.IndexOf("potential_ability")]
-            ];
-            playerKeys.Add(string.Join(CsvColumnsSeparator, keyParts), columns);
-        }
-        return playerKeys;
-    }
-
     private static object GetCleanDbName(int nameId, Dictionary<int, string> names)
     {
         return names.TryGetValue(nameId, out var localName)
             && !string.IsNullOrWhiteSpace(localName)
-            ? localName.Trim().Split(CsvRowsSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
+            ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
     }
 

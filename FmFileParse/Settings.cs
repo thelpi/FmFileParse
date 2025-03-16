@@ -9,11 +9,7 @@ internal static class Settings
 
     public const string SaveFilesPath = "S:\\Share_VM\\saves\\test";
 
-    public const string CsvFilesPath = "S:\\Share_VM\\extract";
-
     public const string SaveFileExtension = "sav";
-
-    public const string CsvFileExtension = "csv";
 
     public const decimal MinValueOccurenceRate = 2 / 3M;
 
@@ -38,16 +34,6 @@ internal static class Settings
                 : DbType.Int32);
     }
 
-    public static readonly string[] AttributeColumns =
-    [
-        "acceleration", "adaptability", "aggression", "agility", "ambition", "anticipation", "balance", "bravery",
-        "consistency", "corners", "creativity", "crossing", "decisions", "determination", "dirtiness", "dribbling",
-        "finishing", "flair", "handling", "heading", "important_matches", "influence", "injury_proneness", "jumping",
-        "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones", "pace", "passing",
-        "penalties", "positioning", "pressure", "professionalism", "reflexes", "set_pieces", "sportsmanship", "stamina",
-        "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
-    ];
-
     public static readonly string[] CommonSqlColumns =
     [
         // intrinsic
@@ -66,7 +52,12 @@ internal static class Settings
         // sides
         "side_left", "side_right", "side_center",
         // attributes
-        .. AttributeColumns
+        "acceleration", "adaptability", "aggression", "agility", "ambition", "anticipation", "balance", "bravery",
+        "consistency", "corners", "creativity", "crossing", "decisions", "determination", "dirtiness", "dribbling",
+        "finishing", "flair", "handling", "heading", "important_matches", "influence", "injury_proneness", "jumping",
+        "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones", "pace", "passing",
+        "penalties", "positioning", "pressure", "professionalism", "reflexes", "set_pieces", "sportsmanship", "stamina",
+        "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
     ];
 
     public static readonly string[] UnmergedOnlyColumns =
