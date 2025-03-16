@@ -4,6 +4,5 @@ internal enum MergeType
 {
     Average,
     ModeAboveThreshold,
-    ModeBelowThreshold,
-    NonMergeable
+    ModeBelowThreshold
 }

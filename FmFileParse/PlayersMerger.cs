@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Diagnostics;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -13,6 +14,9 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
     public void ProceedToMerge()
     {
+        var sw = new Stopwatch();
+        sw.Start();
+
         RemoveDataFromPlayersTable();
 
         var writePlayerCmd = PrepareInsertPlayer();
@@ -98,6 +102,9 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         playersCountCmd.Finalize();
         playersByNameCmd.Finalize();
         writePlayerCmd.Finalize();
+
+        sw.Stop();
+        Debug.WriteLine($"Time: {sw.Elapsed.TotalMinutes}");
     }
 
     private void BulkInsertPlayerMergeStatistics(
@@ -339,13 +346,10 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
             {
                 (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<string>(allFilePlayerData, col, null);
             }
-            else if (Settings.ForeignKeyColumns.Contains(col))
-            {
-                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<int>(allFilePlayerData, col, null);
-            }
             else
             {
-                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<int>(allFilePlayerData, col, x => (int)Math.Round(x.Average()));
+                (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge<int>(allFilePlayerData, col,
+                    Settings.ForeignKeyColumns.Contains(col) ? null : x => (int)Math.Round(x.Average()));
             }
 
             colsAndVals.Add(col, computedValue);
@@ -370,6 +374,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         string columnName,
         Func<IEnumerable<T>, T>? averageFunc)
     {
+        var allKeys = new List<DbType<T>>(allFilePlayerData.Count);
         var counter = new Dictionary<DbType<T>, int>(allFilePlayerData.Count);
         DbType<T> currentMax = default;
         var currentMaxCount = 0;
@@ -377,13 +382,14 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         foreach (var singleValue in allFilePlayerData.Select(_ => _[columnName]))
         {
             var dbVal = new DbType<T>(singleValue);
-            if (counter.TryGetValue(dbVal, out var value))
+            if (allKeys.Contains(dbVal))
             {
-                counter[dbVal] = value + 1;
+                counter[dbVal] = counter[dbVal] + 1;
             }
             else
             {
                 counter.Add(dbVal, 1);
+                allKeys.Add(dbVal);
             }
 
             if (currentMaxCount < counter[dbVal])
@@ -398,7 +404,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
             }
         }
 
-        var aboveThreshold = currentMaxCount / (decimal)allFilePlayerData.Count >= Settings.MinValueOccurenceRate;
+        var aboveThreshold = currentMaxCount >= Settings.MinValueOccurenceRate * allFilePlayerData.Count;
 
         MergeType mergeType;
         object computedValue;

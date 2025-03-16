@@ -132,7 +132,7 @@ CREATE TABLE `players_merge_statistics` (
   `player_id` int NOT NULL,
   `field` varchar(50) COLLATE utf8mb4_bin NOT NULL,
   `occurences` int NOT NULL,
-  `merge_type` set('Average','ModeAboveThreshold','ModeBelowThreshold','NonMergeable') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+  `merge_type` set('Average','ModeAboveThreshold','ModeBelowThreshold') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 CREATE TABLE `unmerged_players` (
