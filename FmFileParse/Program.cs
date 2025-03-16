@@ -24,6 +24,30 @@ if (choice == 4)
 {
     var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFiles[0]);
 
+    DisplayPlayerInformation(data);
+}
+
+if (choice == 1 || choice == 3)
+{
+    var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
+
+    var importer = new DataImporter(Console.WriteLine);
+
+    importer.ProceedToImport(saveFiles, csvFiles);
+}
+
+if (choice == 2 || choice == 3)
+{
+    var merger = new PlayersMerger(saveFiles.Length, Console.WriteLine);
+
+    merger.ProceedToMerge();
+}
+
+Console.WriteLine("Process is done; Press any key to close.");
+Console.ReadKey();
+
+static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData data)
+{
     var p = data.Players?.FirstOrDefault(x => x?.CurrentAbility > 180);
     if (p is not null)
     {
@@ -87,22 +111,3 @@ if (choice == 4)
         Console.WriteLine("No player found!");
     }
 }
-
-if (choice == 1 || choice == 3)
-{
-    var csvFiles = Directory.GetFiles(Settings.CsvFilesPath, $"*.{Settings.CsvFileExtension}");
-
-    var importer = new DataImporter(Console.WriteLine);
-
-    importer.ProceedToImport(saveFiles, csvFiles);
-}
-
-if (choice == 2 || choice == 3)
-{
-    var merger = new PlayersMerger(saveFiles.Length, Console.WriteLine);
-
-    merger.ProceedToMerge();
-}
-
-Console.WriteLine("Process is done; Press any key to close.");
-Console.ReadKey();

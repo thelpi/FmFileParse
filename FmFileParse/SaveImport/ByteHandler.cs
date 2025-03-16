@@ -10,6 +10,9 @@ internal static class ByteHandler
     public static int GetIntFromBytes(byte[] bytes, int start)
         => BitConverter.ToInt32(bytes.Skip(start).Take(4).ToArray(), 0);
 
+    public static decimal GetDecimalFromBytes(byte[] bytes, int start)
+        => (decimal)BitConverter.ToDouble(bytes.Skip(start).Take(8).ToArray(), 0);
+
     public static string GetStringFromBytes(byte[] bytes, int start, int length = 0)
         => Settings.DefaultEncoding.GetString(TrimEnd(bytes.Skip(start).Take(length > 0 ? length : bytes.Length).ToArray()));
 

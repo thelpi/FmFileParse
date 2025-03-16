@@ -16,6 +16,6 @@ public class ClubCompetition : BaseData
     [DataPosition(93)]
     public int CountryId { get; set; }
 
-    [DataPosition(82)]
-    public byte Reputation { get; set; }
+    [DataPosition(105)]
+    public short Reputation { get; set; }
 }

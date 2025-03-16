@@ -6,12 +6,18 @@ namespace FmFileParse.SaveImport;
 
 internal static class DataPositionAttributeParser
 {
+    private static readonly Dictionary<Type, List<(PropertyInfo, DataPositionAttribute?)>> _reflectionCache = [];
+
     internal static void SetDataPositionableProperties<T>(T data, byte[] binaryContent)
     {
-        var propsWithAttr = typeof(T)
-            .GetProperties()
-            .Select(p => (p, p.GetCustomAttributes().FirstOrDefault(a => a.GetType() == typeof(DataPositionAttribute)) as DataPositionAttribute))
-            .ToList();
+        if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))
+        {
+            propsWithAttr = typeof(T)
+                .GetProperties()
+                .Select(p => (p, p.GetCustomAttributes().FirstOrDefault(a => a.GetType() == typeof(DataPositionAttribute)) as DataPositionAttribute))
+                .ToList();
+            _reflectionCache.Add(typeof(T), propsWithAttr);
+        }
 
         foreach (var (p, attr) in propsWithAttr)
         {
@@ -40,6 +46,10 @@ internal static class DataPositionAttributeParser
             else if (p.PropertyType == typeof(short) || p.PropertyType == typeof(short?))
             {
                 propValue = ByteHandler.GetShortFromBytes(binaryContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(decimal) || p.PropertyType == typeof(decimal?))
+            {
+                propValue = ByteHandler.GetDecimalFromBytes(binaryContent, attr.StartAt);
             }
             else if (p.PropertyType == typeof(string))
             {

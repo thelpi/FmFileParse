@@ -12,4 +12,7 @@ public class Confederation : BaseData
 
     [DataPosition(163, Length = 10)]
     public string Acronym { get; set; } = string.Empty;
+
+    [DataPosition(190)]
+    public decimal Strength { get; set; }
 }

@@ -373,7 +373,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         var counter = new Dictionary<DbType<T>, int>(allFilePlayerData.Count);
         DbType<T> currentMax = default;
         var currentMaxCount = 0;
-        var collectedInts = new List<T>(allFilePlayerData.Count);
+        var collectedNotNullValue = new List<T>(allFilePlayerData.Count);
         foreach (var singleValue in allFilePlayerData.Select(_ => _[columnName]))
         {
             var dbVal = new DbType<T>(singleValue);
@@ -394,7 +394,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
             if (!dbVal.IsDbNull)
             {
-                collectedInts.Add(dbVal.Value);
+                collectedNotNullValue.Add(dbVal.Value);
             }
         }
 
@@ -402,9 +402,9 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
         MergeType mergeType;
         object computedValue;
-        if (averageFunc is not null && !aboveThreshold && !counter.ContainsKey(DbType<T>.DbNull))
+        if (averageFunc is not null && !aboveThreshold && collectedNotNullValue.Count == allFilePlayerData.Count)
         {
-            computedValue = averageFunc(collectedInts)!;
+            computedValue = averageFunc(collectedNotNullValue)!;
             mergeType = MergeType.Average;
         }
         else

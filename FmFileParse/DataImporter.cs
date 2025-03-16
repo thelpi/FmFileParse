@@ -69,7 +69,7 @@ internal class DataImporter(Action<string> reportProgress)
         command.CommandText = "DELETE FROM unmerged_players";
         command.ExecuteNonQuery();
 
-        command.CommandText = "DELETE FROM players_merge_statistics";
+        command.CommandText = "TRUNCATE TABLE players_merge_statistics";
         command.ExecuteNonQuery();
 
         foreach (var table in ResetIncrementTables)
@@ -106,6 +106,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("name", DbType.String, (d, _) => d.Name),
                 ("acronym", DbType.String, (d, _) => d.Acronym),
                 ("continent_name", DbType.String, (d, _) => d.ContinentName),
+                ("strength", DbType.Int16, (d, _) => d.Strength * 100)
             },
             (d, _) => d.Name);
     }
@@ -144,6 +145,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
                 ("acronym", DbType.String, (d, iFile) => d.Acronym),
                 ("country_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.CountryId)),
+                ("reputation", DbType.Int32, (d, iFile) => d.Reputation)
             },
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.CountryId)));
     }
