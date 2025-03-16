@@ -6,20 +6,20 @@ namespace FmFileParse.SaveImport;
 
 internal static class DataPositionAttributeParser
 {
-    private static readonly Dictionary<Type, List<(PropertyInfo, DataPositionAttribute?)>> _reflectionCache = [];
+    private static readonly Dictionary<Type, List<(PropertyInfo, DataPositionAttribute?, bool)>> _reflectionCache = [];
 
-    internal static void SetDataPositionableProperties<T>(T data, byte[] binaryContent)
+    internal static void SetDataPositionableProperties<T>(this T data, byte[] binaryContent)
     {
         if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))
         {
             propsWithAttr = typeof(T)
                 .GetProperties()
-                .Select(p => (p, p.GetCustomAttributes().FirstOrDefault(a => a.GetType() == typeof(DataPositionAttribute)) as DataPositionAttribute))
+                .Select(p => (p, p.GetCustomAttribute<DataPositionAttribute>(), p.GetCustomAttribute<ReversedAttributeAttribute>() is not null))
                 .ToList();
             _reflectionCache.Add(typeof(T), propsWithAttr);
         }
 
-        foreach (var (p, attr) in propsWithAttr)
+        foreach (var (p, attr, reversed) in propsWithAttr)
         {
             if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData)))
             {
@@ -29,7 +29,8 @@ internal static class DataPositionAttributeParser
             object? propValue = null;
             if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
-                propValue = ByteHandler.GetByteFromBytes(binaryContent, attr.StartAt);
+                var sourceValue = ByteHandler.GetByteFromBytes(binaryContent, attr.StartAt);
+                propValue = reversed ? (byte)(Settings.MaxAttributeValue - sourceValue) : sourceValue;
             }
             else if (p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
             {

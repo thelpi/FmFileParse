@@ -105,11 +105,16 @@ static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData da
             }
         }
 
-        foreach (var intrinsicProperty in Player.IntrinsicAttributeProperties)
-        {
-            var intrinsicPropertyValue = intrinsicProperty.GetValue(p);
-            Console.WriteLine($"{intrinsicProperty.Name}: {intrinsicPropertyValue}");
-        }
+        // standard
+        Console.WriteLine($"{nameof(Player.Aggression)}: {p.Aggression}");
+        // reversed
+        Console.WriteLine($"{nameof(Player.InjuryProneness)}: {p.InjuryProneness}");
+        // intrinsic global
+        Console.WriteLine($"{nameof(Player.Anticipation)}: {p.Anticipation}");
+        // intrinsic goalkeeper
+        Console.WriteLine($"{nameof(Player.OneOnOnes)}: {p.OneOnOnes}");
+        // intrinsic field player
+        Console.WriteLine($"{nameof(Player.OffTheBall)}: {p.OffTheBall}");
     }
     else
     {

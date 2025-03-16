@@ -376,7 +376,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         object value;
         if (groupedValues[0].Count < Settings.MinValueOccurenceRate * allFilePlayerData.Count)
         {
-            if (averageFunc != null && !groupedValues.Any(x => x.Value == DBNull.Value))
+            if (averageFunc is not null && !groupedValues.Any(x => x.Value == DBNull.Value))
             {
                 value = averageFunc(allValues);
                 mergeType = MergeType.Average;

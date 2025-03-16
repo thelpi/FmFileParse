@@ -15,6 +15,12 @@ internal static class Settings
 
     public const decimal MinPlayerOccurencesRate = 1 / 3M;
 
+    public const int MinAttributeValue = 1;
+
+    public const int MaxAttributeValue = 20;
+
+    public const int MinAttributeForPosition = 15;
+
     public static readonly string[] StringColumns =
     [
         "filename", "first_name", "last_name", "common_name", "transfer_status", "squad_status"

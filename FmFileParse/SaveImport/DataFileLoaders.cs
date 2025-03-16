@@ -71,83 +71,11 @@ internal static class DataFileLoaders
             .Select(x =>
             {
                 var player = new Player();
-                DataPositionAttributeParser.SetDataPositionableProperties(player, x);
-                // TODO: do better
-                var i = 0;
-                foreach (var property in Player.IntrinsicAttributeProperties)
-                {
-                    var intrinsicValue = (byte)property.GetValue(player)!;
-                    var inGameValue = IntrisincToInGameAttributeValue((sbyte)intrinsicValue, i, player.CurrentAbility, player.GoalKeeperPos);
-                    property.SetValue(player, inGameValue);
-                    i++;
-                }
-                // TODO: make more dynamic
-                player.InjuryProneness = (byte)(21 - player.InjuryProneness);
-                player.Dirtiness = (byte)(21 - player.Dirtiness);
+                player.SetDataPositionableProperties(x);
+                player.ComputeAndSetIntrinsicAttributes();
                 return player;
             })
             .ToList();
-    }
-
-    private static byte IntrisincToInGameAttributeValue(sbyte intrinsicValue, int i, short currentAbility, byte goalKeeperRate)
-    {
-        if (i == 0 || i == 3 || i == 6 || i == 7 || i == 10 || i == 11 || i == 12 || i == 13)
-        {
-            return HighConvert(currentAbility, intrinsicValue);
-        }
-        else
-        {
-            if (i == 15 || i == 16 || i == 17)
-            {
-                return goalKeeperRate > 14
-                    ? HighConvert(currentAbility, intrinsicValue)
-                    : LowConvert(currentAbility, intrinsicValue);
-            }
-            else if (i == 1 || i == 2 || i == 4 || i == 5 || i == 8 || i == 9 || i == 14)
-            {
-                return goalKeeperRate > 14
-                    ? LowConvert(currentAbility, intrinsicValue)
-                    : HighConvert(currentAbility, intrinsicValue);
-            }
-        }
-
-        return 0; // whatever
-    }
-
-    private static byte LowConvert(short currentAbility, sbyte intrinsicValue)
-    {
-        var d = (intrinsicValue / 10.0) + (currentAbility / 200.0) + 10;
-
-        var r = (d * d / 30.0) + (d / 3.0) + 0.5;
-
-        if (r < 1)
-        {
-            r = 1;
-        }
-        else if (r > 20)
-        {
-            r = 20;
-        }
-
-        return (byte)Math.Truncate(r);
-    }
-
-    private static byte HighConvert(short currentAbility, sbyte intrinsicValue)
-    {
-        var d = (intrinsicValue / 10.0) + (currentAbility / 20.0) + 10;
-
-        var r = (d * d / 30.0) + (d / 3.0) + 0.5;
-
-        if (r < 1)
-        {
-            r = 1;
-        }
-        else if (r > 20)
-        {
-            r = 20;
-        }
-
-        return (byte)Math.Truncate(r);
     }
 
     private static Dictionary<int, T> GetDataFileDictionary<T>(
@@ -173,7 +101,7 @@ internal static class DataFileLoaders
         foreach (var item in bytes)
         {
             var data = new T();
-            DataPositionAttributeParser.SetDataPositionableProperties(data, item);
+            data.SetDataPositionableProperties(item);
             if (getId(data) >= 0)
             {
                 if (!dic.TryAdd(getId(data), data))

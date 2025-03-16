@@ -1,38 +1,9 @@
-﻿using System.Reflection;
-using FmFileParse.Models.Attributes;
+﻿using FmFileParse.Models.Attributes;
 
 namespace FmFileParse.Models;
 
 public class Player : Staff
 {
-    // note: order is important
-    private static readonly string[] _intrinsicProperties =
-    [
-        nameof(Anticipation),
-        nameof(Creativity),
-        nameof(Crossing),
-        nameof(Decisions),
-        nameof(Dribbling),
-        nameof(Finishing),
-        nameof(Heading),
-        nameof(LongShots),
-        nameof(Marking),
-        nameof(OffTheBall),
-        nameof(Passing),
-        nameof(Penalties),
-        nameof(Positioning),
-        nameof(Tackling),
-        nameof(ThrowIns),
-        nameof(Handling),
-        nameof(OneOnOnes),
-        nameof(Reflexes),
-    ];
-
-    internal static readonly PropertyInfo[] IntrinsicAttributeProperties = [.. typeof(Player)
-        .GetProperties()
-        .Where(p => _intrinsicProperties.Contains(p.Name))
-        .OrderBy(p => _intrinsicProperties.IndexOf(p.Name))];
-
     [DataPosition(0)]
     public int PlayerId { get; set; }
 
@@ -145,12 +116,14 @@ public class Player : Staff
     public byte Corners { get; set; }
 
     [DataPosition(37)]
+    [ReversedAttribute]
     public byte Dirtiness { get; set; }
 
     [DataPosition(41)]
     public byte FreeKicks { get; set; }
 
     [DataPosition(45)]
+    [ReversedAttribute]
     public byte InjuryProneness { get; set; }
 
     [DataPosition(52)]
@@ -160,57 +133,75 @@ public class Player : Staff
     public byte Versatility { get; set; }
 
     [DataPosition(30)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Anticipation { get; set; }
 
     [DataPosition(67)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte Creativity { get; set; }
 
     [DataPosition(35)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte Crossing { get; set; }
 
     [DataPosition(36)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Decisions { get; set; }
 
     [DataPosition(38)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte Dribbling { get; set; }
 
     [DataPosition(39)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte Finishing { get; set; }
 
     [DataPosition(42)]
+    [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
     public byte Handling { get; set; }
 
     [DataPosition(43)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Heading { get; set; }
 
     [DataPosition(49)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte LongShots { get; set; }
 
     [DataPosition(50)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte Marking { get; set; }
 
     [DataPosition(51)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte OffTheBall { get; set; }
 
     [DataPosition(53)]
+    [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
     public byte OneOnOnes { get; set; }
 
     [DataPosition(55)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Passing { get; set; }
 
     [DataPosition(57)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Positioning { get; set; }
 
     [DataPosition(58)]
+    [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
     public byte Reflexes { get; set; }
 
     [DataPosition(62)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Tackling { get; set; }
 
     [DataPosition(56)]
+    [IntrinsicAttribute(IntrinsicType.General)]
     public byte Penalties { get; set; }
 
     [DataPosition(65)]
+    [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public byte ThrowIns { get; set; }
 
     internal void PopulateStaffPropertiers(Staff staff)
