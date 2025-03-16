@@ -72,6 +72,9 @@ internal static class DataFileLoaders
             {
                 var player = new Player();
                 DataPositionAttributeParser.SetDataPositionableProperties(player, x);
+                // TODO: make more dynamic
+                player.InjuryProneness = (byte)(21 - player.InjuryProneness);
+                player.Dirtiness = (byte)(21 - player.Dirtiness);
                 return player;
             })
             .ToList();
