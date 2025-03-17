@@ -317,6 +317,35 @@ internal class DataImporter(Action<string> reportProgress)
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
 
+        void AddIfMatch(List<int> ints, int v, int i)
+        {
+            if (v >= 0)
+            {
+                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(i, out var currentId) && currentId == v);
+                if (!match.Equals(default(SaveIdMapper)))
+                {
+                    ints.Add(match.DbId);
+                }
+            }
+        }
+
+        object MaxOrNull(List<int> source, int count)
+        {
+            var group = source.GetMaxOccurence(x => x);
+            return group != null && (group.Count() >= Settings.MinValueOccurenceRate * count
+                || source.Count == count)
+                ? group.Key
+                : DBNull.Value;
+        }
+
+        int AverageOrMax(List<int> fullList, int count)
+        {
+            var group = fullList.GetMaxOccurence(x => x)!;
+            return group.Count() >= Settings.MinValueOccurenceRate * count
+                ? group.Key
+                : (int)Math.Round(fullList.Average());
+        }
+
         foreach (var clubIdMap in clubsMapping)
         {
             var keysCount = clubIdMap.SaveId.Keys.Count;
@@ -330,83 +359,25 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var fileId in clubIdMap.SaveId.Keys)
             {
-                var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
-
-                var club = data.Clubs[clubIdMap.SaveId[fileId]];
+                var club = GetSaveGameDataFromCache(saveFilePaths[fileId])
+                    .Clubs[clubIdMap.SaveId[fileId]];
 
                 reputationList.Add(club.Reputation);
                 facilitiesList.Add(club.Facilities);
                 bankList.Add(club.Bank);
 
-                if (club.RivalClub1 >= 0)
-                {
-                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub1);
-                    if (!match.Equals(default(SaveIdMapper)))
-                    {
-                        RivalClub1List.Add(match.DbId);
-                    }
-                }
-
-                if (club.RivalClub2 >= 0)
-                {
-                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub2);
-                    if (!match.Equals(default(SaveIdMapper)))
-                    {
-                        RivalClub2List.Add(match.DbId);
-                    }
-                }
-
-                if (club.RivalClub3 >= 0)
-                {
-                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub3);
-                    if (!match.Equals(default(SaveIdMapper)))
-                    {
-                        RivalClub3List.Add(match.DbId);
-                    }
-                }
+                AddIfMatch(RivalClub1List, club.RivalClub1, fileId);
+                AddIfMatch(RivalClub2List, club.RivalClub2, fileId);
+                AddIfMatch(RivalClub3List, club.RivalClub3, fileId);
             }
 
-            var clubGroup1 = RivalClub1List.GetMaxOccurence(x => x);
-            var clubGroup2 = RivalClub2List.GetMaxOccurence(x => x);
-            var clubGroup3 = RivalClub3List.GetMaxOccurence(x => x);
-            var bankGroup = bankList.GetMaxOccurence(x => x)!;
-            var reputationGroup = reputationList.GetMaxOccurence(x => x)!;
-            var facilitiesGroup = facilitiesList.GetMaxOccurence(x => x)!;
-
-            var dbClub1 = clubGroup1 != null && (clubGroup1.Count() >= Settings.MinValueOccurenceRate * keysCount
-                || RivalClub1List.Count == keysCount)
-                ? (object)clubGroup1.Key
-                : DBNull.Value;
-
-            var dbClub2 = clubGroup2 != null && (clubGroup2.Count() >= Settings.MinValueOccurenceRate * keysCount
-                || RivalClub2List.Count == keysCount)
-                ? (object)clubGroup2.Key
-                : DBNull.Value;
-
-            var dbClub3 = clubGroup3 != null && (clubGroup3.Count() >= Settings.MinValueOccurenceRate * keysCount
-                || RivalClub3List.Count == keysCount)
-                ? (object)clubGroup3.Key
-                : DBNull.Value;
-
-            var bank = bankGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
-                ? bankGroup.Key
-                : (int)Math.Round(bankList.Average());
-
-            var facilities = facilitiesGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
-                ? facilitiesGroup.Key
-                : (int)Math.Round(facilitiesList.Average());
-
-            var reputation = reputationGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
-                ? reputationGroup.Key
-                : (int)Math.Round(reputationList.Average());
-
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = dbClub1;
-            command.Parameters["@rival_club_2"].Value = dbClub2;
-            command.Parameters["@rival_club_3"].Value = dbClub3;
-            command.Parameters["@bank"].Value = bank;
-            command.Parameters["@facilities"].Value = facilities;
-            command.Parameters["@reputation"].Value = reputation;
+            command.Parameters["@rival_club_1"].Value = MaxOrNull(RivalClub1List, keysCount);
+            command.Parameters["@rival_club_2"].Value = MaxOrNull(RivalClub2List, keysCount);
+            command.Parameters["@rival_club_3"].Value = MaxOrNull(RivalClub3List, keysCount);
+            command.Parameters["@bank"].Value = AverageOrMax(bankList, keysCount);
+            command.Parameters["@facilities"].Value = AverageOrMax(facilitiesList, keysCount);
+            command.Parameters["@reputation"].Value = AverageOrMax(reputationList, keysCount);
             command.ExecuteNonQuery();
         }
     }
