@@ -366,12 +366,12 @@ internal class DataImporter(Action<string> reportProgress)
                 }
             }
 
-            var clubGroup1 = RivalClub1List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
-            var clubGroup2 = RivalClub2List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
-            var clubGroup3 = RivalClub3List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
-            var bankGroup = bankList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
-            var reputationGroup = reputationList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
-            var facilitiesGroup = facilitiesList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
+            var clubGroup1 = RivalClub1List.GetMaxOccurence(x => x);
+            var clubGroup2 = RivalClub2List.GetMaxOccurence(x => x);
+            var clubGroup3 = RivalClub3List.GetMaxOccurence(x => x);
+            var bankGroup = bankList.GetMaxOccurence(x => x)!;
+            var reputationGroup = reputationList.GetMaxOccurence(x => x)!;
+            var facilitiesGroup = facilitiesList.GetMaxOccurence(x => x)!;
 
             var dbClub1 = clubGroup1 != null && (clubGroup1.Count() >= Settings.MinValueOccurenceRate * keysCount
                 || RivalClub1List.Count == keysCount)

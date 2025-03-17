@@ -5,18 +5,6 @@ internal static class SystemHelper
     private static readonly int[] Months30Days = [4, 6, 9, 11];
 
     /// <summary>
-    /// Gets the most represented value of a collection, and the number of occurences.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="collection"></param>
-    /// <returns></returns>
-    public static (T value, int occurences) GetRepresentativeValue<T>(this IEnumerable<T> collection)
-    {
-        var group = collection.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
-        return (group.Key, group.Count());
-    }
-
-    /// <summary>
     /// Shortcut to <see cref="Array.IndexOf(Array, object?)"/>.
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -49,4 +37,9 @@ internal static class SystemHelper
 
         return new DateTime(year, month, day);
     }
+
+    public static IGrouping<OutT, InT>? GetMaxOccurence<InT, OutT>(
+        this IEnumerable<InT> collection,
+        Func<InT, OutT> keySelector)
+        => collection.GroupBy(keySelector).OrderByDescending(x => x.Count()).FirstOrDefault();
 }
