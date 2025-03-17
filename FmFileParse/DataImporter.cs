@@ -467,14 +467,7 @@ internal class DataImporter(Action<string> reportProgress)
                 }
                 else
                 {
-                    if (match.SaveId.TryGetValue(iFile, out var value))
-                    {
-                        
-                    }
-                    else
-                    {
-                        match.SaveId.Add(iFile, sourceData[key].Id);
-                    }
+                    match.SaveId.Add(iFile, sourceData[key].Id);
                 }
             }
 
