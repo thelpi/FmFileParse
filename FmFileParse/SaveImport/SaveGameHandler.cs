@@ -28,34 +28,34 @@ public static class SaveGameHandler
             FileName = fileName
         };
 
-        using var sr = new StreamReader(fileName);
-        ReadFileHeaders(sr, savegame);
-        
-        LoadGameData(savegame);
+        savegame.ReadFileHeaders(fileName);
+
+        savegame.LoadGameData();
 
         return new SaveGameData
         {
             GameDate = savegame.GameDate,
-            Confederations = DataFileLoaders.GetDataFileConfederationsDictionary(savegame),
-            FirstNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
-            LastNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.LastNames),
-            CommonNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),
-            Nations = DataFileLoaders.GetDataFileNationsDictionary(savegame),
-            Clubs = DataFileLoaders.GetDataFileClubsDictionary(savegame),
-            Players = DataFileLoaders.GetDataFilePlayersList(savegame),
-            ClubCompetitions = DataFileLoaders.GetDataFileClubCompetitionsDictionary(savegame)
+            Confederations = savegame.GetDataFileConfederationsDictionary(),
+            FirstNames = savegame.GetDataFileStringsDictionary(DataFileType.FirstNames),
+            LastNames = savegame.GetDataFileStringsDictionary(DataFileType.LastNames),
+            CommonNames = savegame.GetDataFileStringsDictionary(DataFileType.CommonNames),
+            Nations = savegame.GetDataFileNationsDictionary(),
+            Clubs = savegame.GetDataFileClubsDictionary(),
+            Players = savegame.GetDataFilePlayersList(),
+            ClubCompetitions = savegame.GetDataFileClubCompetitionsDictionary()
         };
     }
 
-    internal static DataFileFact GetDataFileFact(DataFileType type)
+    internal static DataFileFact GetDataFileFact(this DataFileType type)
         => _facts.First(x => x.Type == type);
 
     private static DataFileFact GetDataFileFact(string name)
         => _facts.FirstOrDefault(x => x.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))
             ?? new DataFileFact(DataFileType.Unknown, name, 0, 0);
 
-    private static void ReadFileHeaders(StreamReader sr, SaveGameFile savegame)
+    private static void ReadFileHeaders(this SaveGameFile savegame, string fileName)
     {
+        using var sr = new StreamReader(fileName);
         using var br = new BinaryReader(sr.BaseStream);
         savegame.IsCompressed = br.ReadInt32() == 4;
 
@@ -66,22 +66,22 @@ public static class SaveGameHandler
         {
             var fileHeader = new byte[ByteBlockSize];
             br.Read(fileHeader, 0, ByteBlockSize);
-            var internalName = ByteHandler.GetStringFromBytes(fileHeader, 8);
+            var internalName = fileHeader.GetStringFromBytes(8);
 
             var fileFacts = GetDataFileFact(internalName);
 
-            savegame.DataBlockNameList.Add(new DataFile(fileFacts, ByteHandler.GetIntFromBytes(fileHeader, 0), ByteHandler.GetIntFromBytes(fileHeader, 4)));
+            savegame.DataBlockNameList.Add(new DataFile(fileFacts, fileHeader.GetIntFromBytes(0), fileHeader.GetIntFromBytes(4)));
         }
     }
 
-    private static void LoadGameData(SaveGameFile savegame)
+    private static void LoadGameData(this SaveGameFile savegame)
     {
         var general = savegame.DataBlockNameList.First(x => x.FileFacts.Type == DataFileType.General);
-        var fileFacts = GetDataFileFact(DataFileType.General);
+        var fileFacts = DataFileType.General.GetDataFileFact();
 
-        ByteHandler.GetAllDataFromFile(general, savegame.FileName, fileFacts.DataSize);
+        general.GetAllDataFromFile(savegame.FileName, fileFacts.DataSize);
 
-        var fileData = ByteHandler.GetAllDataFromFile(general, savegame.FileName, fileFacts.DataSize);
-        savegame.GameDate = ByteHandler.GetDateFromBytes(fileData[0], fileFacts.DataSize - 8)!.Value;
+        var fileData = general.GetAllDataFromFile(savegame.FileName, fileFacts.DataSize);
+        savegame.GameDate = fileData[0].GetDateFromBytes(fileFacts.DataSize - 8)!.Value;
     }
 }

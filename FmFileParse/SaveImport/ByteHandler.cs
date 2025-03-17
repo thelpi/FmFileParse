@@ -4,30 +4,30 @@ namespace FmFileParse.SaveImport;
 
 internal static class ByteHandler
 {
-    public static short GetShortFromBytes(byte[] bytes, int start)
+    public static short GetShortFromBytes(this byte[] bytes, int start)
         => BitConverter.ToInt16(bytes.Skip(start).Take(2).ToArray(), 0);
 
-    public static int GetIntFromBytes(byte[] bytes, int start)
+    public static int GetIntFromBytes(this byte[] bytes, int start)
         => BitConverter.ToInt32(bytes.Skip(start).Take(4).ToArray(), 0);
 
-    public static decimal GetDecimalFromBytes(byte[] bytes, int start)
+    public static decimal GetDecimalFromBytes(this byte[] bytes, int start)
         => (decimal)BitConverter.ToDouble(bytes.Skip(start).Take(8).ToArray(), 0);
 
-    public static string GetStringFromBytes(byte[] bytes, int start, int length = 0)
+    public static string GetStringFromBytes(this byte[] bytes, int start, int length = 0)
         => Settings.DefaultEncoding.GetString(TrimEnd(bytes.Skip(start).Take(length > 0 ? length : bytes.Length).ToArray()));
 
-    public static DateTime? GetDateFromBytes(byte[] bytes, int start)
+    public static DateTime? GetDateFromBytes(this byte[] bytes, int start)
         => ConvertToDate(bytes.Skip(start).Take(5).ToArray());
 
-    public static byte GetByteFromBytes(byte[] bytes, int start)
+    public static byte GetByteFromBytes(this byte[] bytes, int start)
         => bytes[start];
 
-    public static List<byte[]> GetAllDataFromFile(DataFile dataFile, string fileName, int sizeOfData)
+    public static List<byte[]> GetAllDataFromFile(this DataFile dataFile, string fileName, int sizeOfData)
     {
         using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
         using var br = new BinaryReader(fs);
 
-        var numberOfRecords = GetNumberOfRecordsFromDataFile(dataFile, sizeOfData, br, out var startReadPosition);
+        var numberOfRecords = dataFile.GetNumberOfRecordsFromDataFile(sizeOfData, br, out var startReadPosition);
 
         br.BaseStream.Seek(startReadPosition, SeekOrigin.Begin);
 
@@ -74,7 +74,7 @@ internal static class ByteHandler
         return new DateTime(year, 1, 1).AddDays(day);
     }
 
-    private static int GetNumberOfRecordsFromDataFile(DataFile dataFile, int sizeOfData, BinaryReader br, out int startReadPosition)
+    private static int GetNumberOfRecordsFromDataFile(this DataFile dataFile, int sizeOfData, BinaryReader br, out int startReadPosition)
     {
         var numberOfRecords = dataFile.Length / sizeOfData;
         startReadPosition = dataFile.Position;

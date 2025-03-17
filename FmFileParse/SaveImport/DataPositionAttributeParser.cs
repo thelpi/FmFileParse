@@ -29,32 +29,32 @@ internal static class DataPositionAttributeParser
             object? propValue = null;
             if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
-                var sourceValue = ByteHandler.GetByteFromBytes(binaryContent, attr.StartAt);
+                var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
                 propValue = reversed ? (byte)(Settings.MaxAttributeValue - sourceValue) : sourceValue;
             }
             else if (p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
             {
-                propValue = ByteHandler.GetByteFromBytes(binaryContent, attr.StartAt) == 1;
+                propValue = binaryContent.GetByteFromBytes(attr.StartAt) == 1;
             }
             else if (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?))
             {
-                propValue = ByteHandler.GetDateFromBytes(binaryContent, attr.StartAt);
+                propValue = binaryContent.GetDateFromBytes(attr.StartAt);
             }
             else if (p.PropertyType == typeof(int) || p.PropertyType == typeof(int?))
             {
-                propValue = ByteHandler.GetIntFromBytes(binaryContent, attr.StartAt);
+                propValue = binaryContent.GetIntFromBytes(attr.StartAt);
             }
             else if (p.PropertyType == typeof(short) || p.PropertyType == typeof(short?))
             {
-                propValue = ByteHandler.GetShortFromBytes(binaryContent, attr.StartAt);
+                propValue = binaryContent.GetShortFromBytes(attr.StartAt);
             }
             else if (p.PropertyType == typeof(decimal) || p.PropertyType == typeof(decimal?))
             {
-                propValue = ByteHandler.GetDecimalFromBytes(binaryContent, attr.StartAt);
+                propValue = binaryContent.GetDecimalFromBytes(attr.StartAt);
             }
             else if (p.PropertyType == typeof(string))
             {
-                propValue = ByteHandler.GetStringFromBytes(binaryContent, attr.StartAt, attr.Length);
+                propValue = binaryContent.GetStringFromBytes(attr.StartAt, attr.Length);
             }
             else
             {

@@ -5,53 +5,69 @@ namespace FmFileParse.SaveImport;
 
 internal static class DataFileLoaders
 {
-    private static Dictionary<int, Staff> GetDataFileStaffDictionary(SaveGameFile savegame, out List<Staff> duplicateStaff)
-        => GetDataFileDictionary(savegame, DataFileType.Staff, x => x.StaffPlayerId, out duplicateStaff);
+    public static Dictionary<int, Club> GetDataFileClubsDictionary(this SaveGameFile savegame)
+        => savegame.GetDataFileDictionary<Club>(DataFileType.Clubs, out _).ManageDuplicateClubs();
 
-    private static Dictionary<int, Contract> GetDataFileContractsDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<Contract>(savegame, DataFileType.Contracts, x => x.PlayerId, out _);
+    public static Dictionary<int, ClubCompetition> GetDataFileClubCompetitionsDictionary(this SaveGameFile savegame)
+        => savegame.GetDataFileDictionary<ClubCompetition>(DataFileType.ClubCompetitions, out _);
 
-    public static Dictionary<int, Club> GetDataFileClubsDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<Club>(savegame, DataFileType.Clubs, out _);
+    public static Dictionary<int, Nation> GetDataFileNationsDictionary(this SaveGameFile savegame)
+        => savegame.GetDataFileDictionary<Nation>(DataFileType.Nations, out _);
 
-    public static Dictionary<int, ClubCompetition> GetDataFileClubCompetitionsDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<ClubCompetition>(savegame, DataFileType.ClubCompetitions, out _);
+    public static Dictionary<int, Confederation> GetDataFileConfederationsDictionary(this SaveGameFile savegame)
+        => savegame.GetDataFileDictionary<Confederation>(DataFileType.Confederations, out _);
 
-    public static Dictionary<int, Nation> GetDataFileNationsDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<Nation>(savegame, DataFileType.Nations, out _);
-
-    public static Dictionary<int, Confederation> GetDataFileConfederationsDictionary(SaveGameFile savegame)
-        => GetDataFileDictionary<Confederation>(savegame, DataFileType.Confederations, out _);
-
-    private static List<byte[]> GetDataFileBytes(SaveGameFile savegame, DataFileType fileType, int sizeOfData)
+    public static Dictionary<int, string> GetDataFileStringsDictionary(
+        this SaveGameFile savegame,
+        DataFileType type)
     {
-        var dataFile = savegame.DataBlockNameList.First(x => x.FileFacts.Type == fileType);
-        return ByteHandler.GetAllDataFromFile(dataFile, savegame.FileName, sizeOfData);
-    }
-
-    public static Dictionary<int, string> GetDataFileStringsDictionary(SaveGameFile savegame, DataFileType type)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(type);
-        var fileData = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
+        var fileFacts = type.GetDataFileFact();
+        var fileData = savegame.GetDataFileBytes(fileFacts.Type, fileFacts.DataSize);
 
         var fileContents = new Dictionary<int, string>(fileData.Count);
         for (var i = 0; i < fileData.Count; i++)
         {
-            fileContents.Add(i, ByteHandler.GetStringFromBytes(fileData[i], 0, fileFacts.StringLength));
+            fileContents.Add(i, fileData[i].GetStringFromBytes(0, fileFacts.StringLength));
         }
 
         return fileContents;
     }
 
-    public static List<Player> GetDataFilePlayersList(SaveGameFile savegame)
+    public static List<Player> GetDataFilePlayersList(this SaveGameFile savegame)
     {
         return ConstructSearchablePlayers(
-            GetDataFileStaffDictionary(savegame, out _),
-            GetDataFilePlayersData(savegame),
-            GetDataFileContractsDictionary(savegame)).ToList();
+            savegame.GetDataFileStaffDictionary(out _),
+            savegame.GetDataFilePlayersData(),
+            savegame.GetDataFileContractsDictionary()).ToList();
     }
 
-    public static IEnumerable<Player> ConstructSearchablePlayers(Dictionary<int, Staff> staffDic, List<Player> players, Dictionary<int, Contract> contracts)
+    private static Dictionary<int, Staff> GetDataFileStaffDictionary(this SaveGameFile savegame, out List<Staff> duplicateStaff)
+        => savegame.GetDataFileDictionary(DataFileType.Staff, x => x.StaffPlayerId, out duplicateStaff);
+
+    private static Dictionary<int, Contract> GetDataFileContractsDictionary(this SaveGameFile savegame)
+        => savegame.GetDataFileDictionary<Contract>(DataFileType.Contracts, x => x.PlayerId, out _);
+
+    private static List<byte[]> GetDataFileBytes(
+        this SaveGameFile savegame,
+        DataFileType fileType,
+        int sizeOfData)
+    {
+        var dataFile = savegame.DataBlockNameList.First(x => x.FileFacts.Type == fileType);
+        return dataFile.GetAllDataFromFile(savegame.FileName, sizeOfData);
+    }
+
+    private static List<Player> GetDataFilePlayersData(this SaveGameFile savegame)
+    {
+        var fileFacts = DataFileType.Players.GetDataFileFact();
+        return savegame.GetDataFileBytes(fileFacts.Type, fileFacts.DataSize)
+            .Select(x => new Player().SetDataPositionableProperties(x).ComputeAndSetIntrinsicAttributes())
+            .ToList();
+    }
+
+    private static IEnumerable<Player> ConstructSearchablePlayers(
+        Dictionary<int, Staff> staffDic,
+        List<Player> players,
+        Dictionary<int, Contract> contracts)
     {
         foreach (var player in players)
         {
@@ -64,23 +80,15 @@ internal static class DataFileLoaders
         }
     }
 
-    public static List<Player> GetDataFilePlayersData(SaveGameFile savegame)
-    {
-        var fileFacts = SaveGameHandler.GetDataFileFact(DataFileType.Players);
-        return GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize)
-            .Select(x => new Player().SetDataPositionableProperties(x).ComputeAndSetIntrinsicAttributes())
-            .ToList();
-    }
-
     private static Dictionary<int, T> GetDataFileDictionary<T>(
-        SaveGameFile savegame,
+        this SaveGameFile savegame,
         DataFileType type,
         out List<T> duplicates)
         where T : BaseData, new()
         => GetDataFileDictionary(savegame, type, x => x.Id, out duplicates);
 
     private static Dictionary<int, T> GetDataFileDictionary<T>(
-        SaveGameFile savegame,
+        this SaveGameFile savegame,
         DataFileType type,
         Func<T, int> getId,
         out List<T> duplicates)
@@ -88,8 +96,8 @@ internal static class DataFileLoaders
     {
         duplicates = [];
 
-        var fileFacts = SaveGameHandler.GetDataFileFact(type);
-        var bytes = GetDataFileBytes(savegame, fileFacts.Type, fileFacts.DataSize);
+        var fileFacts = type.GetDataFileFact();
+        var bytes = savegame.GetDataFileBytes(fileFacts.Type, fileFacts.DataSize);
 
         var dic = new Dictionary<int, T>(bytes.Count);
         foreach (var item in bytes)
@@ -105,5 +113,28 @@ internal static class DataFileLoaders
         }
 
         return dic;
+    }
+
+    private static Dictionary<int, Club> ManageDuplicateClubs(this Dictionary<int, Club> clubs)
+    {
+        var clubsGroups = clubs.Values
+            .GroupBy(c => $"{c.LongName};{c.NationId};{c.DivisionId};")
+            .OrderByDescending(x => x.Count())
+            .First();
+
+        if (clubsGroups.Count() > 1)
+        {
+            var i = 1;
+            foreach (var club in clubsGroups.OrderByDescending(c => c.Reputation))
+            {
+                if (i > 1)
+                {
+                    club.LongName = $"{club.LongName}-{i}";
+                }
+                i++;
+            }
+        }
+
+        return clubs;
     }
 }

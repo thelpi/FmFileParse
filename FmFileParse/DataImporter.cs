@@ -142,6 +142,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
                 ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId))
             },
+            // note: the key here should be the same as the one used in 'DataFileLoaders.ManageDuplicateClubs'
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
@@ -318,7 +319,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         foreach (var clubIdMap in clubsMapping)
         {
-            var keysCount = clubIdMap.SavesId.Keys.Count;
+            var keysCount = clubIdMap.SaveId.Keys.Count;
 
             var RivalClub1List = new List<int>(keysCount);
             var RivalClub2List = new List<int>(keysCount);
@@ -327,12 +328,11 @@ internal class DataImporter(Action<string> reportProgress)
             var facilitiesList = new List<int>(keysCount);
             var bankList = new List<int>(keysCount);
 
-            foreach (var fileId in clubIdMap.SavesId.Keys)
+            foreach (var fileId in clubIdMap.SaveId.Keys)
             {
                 var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
 
-                // ignore the special of "Dynamo Moscow' duplicated
-                var club = data.Clubs[clubIdMap.SavesId[fileId][0]];
+                var club = data.Clubs[clubIdMap.SaveId[fileId]];
 
                 reputationList.Add(club.Reputation);
                 facilitiesList.Add(club.Facilities);
@@ -340,7 +340,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 if (club.RivalClub1 >= 0)
                 {
-                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub1));
+                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub1);
                     if (!match.Equals(default(SaveIdMapper)))
                     {
                         RivalClub1List.Add(match.DbId);
@@ -349,7 +349,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 if (club.RivalClub2 >= 0)
                 {
-                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub2));
+                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub2);
                     if (!match.Equals(default(SaveIdMapper)))
                     {
                         RivalClub2List.Add(match.DbId);
@@ -358,7 +358,7 @@ internal class DataImporter(Action<string> reportProgress)
 
                 if (club.RivalClub3 >= 0)
                 {
-                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub3));
+                    var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileId, out var currentId) && currentId == club.RivalClub3);
                     if (!match.Equals(default(SaveIdMapper)))
                     {
                         RivalClub3List.Add(match.DbId);
@@ -457,9 +457,9 @@ internal class DataImporter(Action<string> reportProgress)
                     {
                         DbId = (int)command.LastInsertedId,
                         Key = functionnalKey,
-                        SavesId = new Dictionary<int, List<int>>
+                        SaveId = new Dictionary<int, int>
                         {
-                            { iFile, [ sourceData[key].Id ] }
+                            { iFile, sourceData[key].Id }
                         }
                     });
 
@@ -467,13 +467,13 @@ internal class DataImporter(Action<string> reportProgress)
                 }
                 else
                 {
-                    if (match.SavesId.TryGetValue(iFile, out var value))
+                    if (match.SaveId.TryGetValue(iFile, out var value))
                     {
-                        value.Add(sourceData[key].Id);
+                        
                     }
                     else
                     {
-                        match.SavesId.Add(iFile, [ sourceData[key].Id ]);
+                        match.SaveId.Add(iFile, sourceData[key].Id);
                     }
                 }
             }
@@ -491,7 +491,7 @@ internal class DataImporter(Action<string> reportProgress)
     }
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
-        => saveId < 0 ? -1 :mapping.First(x => x.SavesId.ContainsKey(fileIndex) && x.SavesId[fileIndex].Contains(saveId)).DbId;
+        => saveId < 0 ? -1 :mapping.First(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId).DbId;
 
     private static object GetCleanDbName(int nameId, Dictionary<int, string> names)
     {
@@ -507,8 +507,6 @@ internal class DataImporter(Action<string> reportProgress)
 
         public int DbId { get; init; }
 
-        // the value of the dictionary SHOULD be a single value
-        // but the club "Torpedo Moscou" is duplicated everytime
-        public Dictionary<int, List<int>> SavesId { get; init; }
+        public Dictionary<int, int> SaveId { get; init; }
     }
 }
