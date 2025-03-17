@@ -44,8 +44,8 @@ internal static class Settings
     [
         // intrinsic
         "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
-        // country related
-        "country_id", "secondary_country_id", "caps", "international_goals",
+        // nation related
+        "nation_id", "secondary_nation_id", "caps", "international_goals",
         // potential & reputation
         "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
         // club related
@@ -73,7 +73,7 @@ internal static class Settings
 
     public static readonly string[] ForeignKeyColumns =
     [
-        "club_id", "country_id", "secondary_country_id"
+        "club_id", "nation_id", "secondary_nation_id"
     ];
 
     public static readonly Encoding DefaultEncoding = Encoding.Latin1;

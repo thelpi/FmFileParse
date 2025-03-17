@@ -11,7 +11,7 @@ public class Club : BaseData
     public string Name { get; set; } = string.Empty;
 
     [DataPosition(83)]
-    public int CountryId { get; set; }
+    public int NationId { get; set; }
 
     [DataPosition(87)]
     public int DivisionId { get; set; }

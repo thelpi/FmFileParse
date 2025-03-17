@@ -7,7 +7,7 @@ internal enum DataFileType
     FirstNames,
     LastNames,
     CommonNames,
-    Countries,
+    Nations,
     Staff,
     Players,
     Clubs,

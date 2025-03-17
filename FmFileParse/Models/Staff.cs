@@ -26,10 +26,10 @@ public class Staff : BaseData
     public DateTime DateOfBirth { get; set; }
 
     [DataPosition(26)]
-    public int CountryId { get; set; }
+    public int NationId { get; set; }
 
     [DataPosition(30)]
-    public int SecondaryCountryId { get; set; }
+    public int SecondaryNationId { get; set; }
 
     [DataPosition(34)]
     public byte InternationalCaps { get; set; }

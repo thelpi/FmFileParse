@@ -14,7 +14,7 @@ public class ClubCompetition : BaseData
     public string Acronym { get; set; } = string.Empty;
 
     [DataPosition(93)]
-    public int CountryId { get; set; }
+    public int NationId { get; set; }
 
     [DataPosition(105)]
     public short Reputation { get; set; }

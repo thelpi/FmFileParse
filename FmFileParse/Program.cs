@@ -62,11 +62,11 @@ static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData da
         data.Clubs.TryGetValue(p.ClubId, out var pClub);
         if (pClub is not null)
         {
-            Console.WriteLine($"Club: {pClub.LongName} - Reputation: {pClub.Reputation} - CountryId: {pClub.CountryId}");
+            Console.WriteLine($"Club: {pClub.LongName} - Reputation: {pClub.Reputation} - NationId: {pClub.NationId}");
             data.ClubCompetitions.TryGetValue(pClub.DivisionId, out var cDivision);
             if (cDivision is not null)
             {
-                Console.WriteLine($"Division: {cDivision.Name} - CountryId: {cDivision.CountryId}");
+                Console.WriteLine($"Division: {cDivision.Name} - NationId: {cDivision.NationId}");
             }
             else if (pClub.DivisionId >= 0)
             {
@@ -82,26 +82,26 @@ static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData da
         {
             Console.WriteLine($"No club with id {p.ClubId} found!");
         }
-        data.Countries.TryGetValue(p.CountryId, out var pCountry);
-        if (pCountry is null)
+        data.Nations.TryGetValue(p.NationId, out var pNation);
+        if (pNation is null)
         {
-            Console.WriteLine($"No country with id {p.CountryId} found!");
+            Console.WriteLine($"No nation with id {p.NationId} found!");
         }
         else
         {
-            Console.WriteLine($"Country: {pCountry.Name} - Reputation: {pCountry.Reputation} - IsEu: {pCountry.IsEu == 2}");
-            data.Confederations.TryGetValue(pCountry.ConfederationId, out var cConfederation);
+            Console.WriteLine($"Nation: {pNation.Name} - Reputation: {pNation.Reputation} - IsEu: {pNation.IsEu == 2}");
+            data.Confederations.TryGetValue(pNation.ConfederationId, out var cConfederation);
             if (cConfederation is not null)
             {
                 Console.WriteLine($"Confederation: {cConfederation.Name} - Acronym: {cConfederation.Acronym}");
             }
-            else if (pCountry.ConfederationId >= 0)
+            else if (pNation.ConfederationId >= 0)
             {
-                Console.WriteLine($"No confederation with id {pCountry.ConfederationId} found!");
+                Console.WriteLine($"No confederation with id {pNation.ConfederationId} found!");
             }
             else
             {
-                Console.WriteLine("Confederation is not set on the country.");
+                Console.WriteLine("Confederation is not set on the nation.");
             }
         }
 

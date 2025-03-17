@@ -2,7 +2,7 @@
 
 namespace FmFileParse.Models;
 
-public class Country : BaseData
+public class Nation : BaseData
 {
     [DataPosition(113)]
     public short ConfederationId { get; set; }

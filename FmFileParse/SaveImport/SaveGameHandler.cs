@@ -16,7 +16,7 @@ public static class SaveGameHandler
         new(DataFileType.Players, "player.dat", 70, 0),
         new(DataFileType.Clubs, "club.dat", 581, 0),
         new(DataFileType.ClubCompetitions, "club_comp.dat", 107, 0),
-        new(DataFileType.Countries, "nation.dat", 290, 0),
+        new(DataFileType.Nations, "nation.dat", 290, 0),
         new(DataFileType.General, "general.dat", 3952, 0),
         new(DataFileType.Contracts, "contract.dat", 80, 0, headerOverload: new DataFileHeaderInformation(0, 4, 8, 21, 17))
     ];
@@ -40,7 +40,7 @@ public static class SaveGameHandler
             FirstNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.FirstNames),
             LastNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.LastNames),
             CommonNames = DataFileLoaders.GetDataFileStringsDictionary(savegame, DataFileType.CommonNames),
-            Countries = DataFileLoaders.GetDataFileCountriesDictionary(savegame),
+            Nations = DataFileLoaders.GetDataFileNationsDictionary(savegame),
             Clubs = DataFileLoaders.GetDataFileClubsDictionary(savegame),
             Players = DataFileLoaders.GetDataFilePlayersList(savegame),
             ClubCompetitions = DataFileLoaders.GetDataFileClubCompetitionsDictionary(savegame)
