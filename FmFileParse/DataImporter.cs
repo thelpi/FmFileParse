@@ -15,7 +15,7 @@ internal class DataImporter(Action<string> reportProgress)
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
-        "players", "clubs", "club_competitions", "countries", "confederations"
+        "players", "clubs", "club_competitions", "nations", "confederations"
     ];
 
     private readonly Func<MySqlConnection> _getConnection =
@@ -28,10 +28,10 @@ internal class DataImporter(Action<string> reportProgress)
     {
         ClearAllData();
         var confederations = ImportConfederations(saveFilePaths);
-        var countries = ImportCountries(saveFilePaths, confederations);
-        var clubCompetitions = ImportClubCompetitions(saveFilePaths, countries);
-        var clubs = ImportClubs(saveFilePaths, countries, clubCompetitions);
-        ImportPlayers(saveFilePaths, countries, clubs);
+        var nations = ImportNations(saveFilePaths, confederations);
+        var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
+        var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
+        ImportPlayers(saveFilePaths, nations, clubs);
     }
 
     private void ClearAllData()
@@ -87,13 +87,13 @@ internal class DataImporter(Action<string> reportProgress)
             (d, _) => d.Name);
     }
 
-    private List<SaveIdMapper> ImportCountries(
+    private List<SaveIdMapper> ImportNations(
         string[] saveFilePaths,
         List<SaveIdMapper> confederationsMapping)
     {
-        var countries = ImportData(x => x.Nations,
+        var nations = ImportData(x => x.Nations,
             saveFilePaths,
-            "countries",
+            "nations",
             new (string, DbType, Func<Nation, int, object>)[]
             {
                 ("name", DbType.String, (d, _) => d.Name),
@@ -105,12 +105,12 @@ internal class DataImporter(Action<string> reportProgress)
             },
             (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
 
-        return countries;
+        return nations;
     }
 
     private List<SaveIdMapper> ImportClubCompetitions(
         string[] saveFilePaths,
-        List<SaveIdMapper> countriesMapping)
+        List<SaveIdMapper> nationsMapping)
     {
         return ImportData(x => x.ClubCompetitions,
             saveFilePaths,
@@ -120,15 +120,15 @@ internal class DataImporter(Action<string> reportProgress)
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
                 ("acronym", DbType.String, (d, iFile) => d.Acronym),
-                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
                 ("reputation", DbType.Int32, (d, iFile) => d.Reputation)
             },
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
     }
 
     private List<SaveIdMapper> ImportClubs(
         string[] saveFilePaths,
-        List<SaveIdMapper> countriesMapping,
+        List<SaveIdMapper> nationsMapping,
         List<SaveIdMapper> clubCompetitionsMapping)
     {
         return ImportData(x => x.Clubs,
@@ -138,16 +138,16 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
-                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
+                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
                 ("reputation", DbType.Int32, (d, iFile) => d.Reputation),
                 ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId)),
             },
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
     private void ImportPlayers(
         string[] saveFilePaths,
-        List<SaveIdMapper> countriesMapping,
+        List<SaveIdMapper> nationsMapping,
         List<SaveIdMapper> clubsMapping)
     {
         _reportProgress("Players importation starts...");
@@ -193,8 +193,8 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
                 command.Parameters["@date_of_birth"].Value = player.DateOfBirth;
-                command.Parameters["@nation_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.NationId);
-                command.Parameters["@secondary_nation_id"].Value = GetMapDbIdObject(countriesMapping, iFile, player.SecondaryNationId);
+                command.Parameters["@nation_id"].Value = GetMapDbIdObject(nationsMapping, iFile, player.NationId);
+                command.Parameters["@secondary_nation_id"].Value = GetMapDbIdObject(nationsMapping, iFile, player.SecondaryNationId);
                 command.Parameters["@caps"].Value = player.InternationalCaps;
                 command.Parameters["@international_goals"].Value = player.InternationalGoals;
                 command.Parameters["@right_foot"].Value = player.RightFoot;
