@@ -317,33 +317,34 @@ internal class DataImporter(Action<string> reportProgress)
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
 
-        void AddIfMatch(List<int> ints, int v, int i)
+        void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
         {
-            if (v >= 0)
+            if (saveId >= 0)
             {
-                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(i, out var currentId) && currentId == v);
+                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentId) && currentId == saveId);
                 if (!match.Equals(default(SaveIdMapper)))
                 {
-                    ints.Add(match.DbId);
+                    dbIdList.Add(match.DbId);
                 }
             }
         }
 
-        object MaxOrNull(List<int> source, int count)
+        object MacOrAvgOrNull(List<int> source, int count, bool isId)
         {
             var group = source.GetMaxOccurence(x => x);
-            return group != null && (group.Count() >= Settings.MinValueOccurenceRate * count
-                || source.Count == count)
-                ? group.Key
-                : DBNull.Value;
-        }
-
-        int AverageOrMax(List<int> fullList, int count)
-        {
-            var group = fullList.GetMaxOccurence(x => x)!;
-            return group.Count() >= Settings.MinValueOccurenceRate * count
-                ? group.Key
-                : (int)Math.Round(fullList.Average());
+            if (group is not null)
+            {
+                if (group.Count() >= Settings.MinValueOccurenceRate * count
+                    || (isId && source.Count == count))
+                {
+                    return group.Key;
+                }
+                else if (!isId)
+                {
+                    return (int)Math.Round(source.Average());
+                }
+            }
+            return DBNull.Value;
         }
 
         foreach (var clubIdMap in clubsMapping)
@@ -372,13 +373,15 @@ internal class DataImporter(Action<string> reportProgress)
             }
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MaxOrNull(RivalClub1List, keysCount);
-            command.Parameters["@rival_club_2"].Value = MaxOrNull(RivalClub2List, keysCount);
-            command.Parameters["@rival_club_3"].Value = MaxOrNull(RivalClub3List, keysCount);
-            command.Parameters["@bank"].Value = AverageOrMax(bankList, keysCount);
-            command.Parameters["@facilities"].Value = AverageOrMax(facilitiesList, keysCount);
-            command.Parameters["@reputation"].Value = AverageOrMax(reputationList, keysCount);
+            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(RivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(RivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(RivalClub3List, keysCount, true);
+            command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
+            command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
+            command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
             command.ExecuteNonQuery();
+
+            _reportProgress($"Information updated for clubId: {clubIdMap.DbId}.");
         }
     }
 
