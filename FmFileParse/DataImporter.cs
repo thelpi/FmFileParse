@@ -15,7 +15,7 @@ internal class DataImporter(Action<string> reportProgress)
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
-        "players", "clubs", "competitions", "countries", "confederations"
+        "players", "clubs", "club_competitions", "countries", "confederations"
     ];
 
     private readonly Func<MySqlConnection> _getConnection =
@@ -29,8 +29,8 @@ internal class DataImporter(Action<string> reportProgress)
         ClearAllData();
         var confederations = ImportConfederations(saveFilePaths);
         var countries = ImportCountries(saveFilePaths, confederations);
-        var competitions = ImportCompetitions(saveFilePaths, countries);
-        var clubs = ImportClubs(saveFilePaths, countries, competitions);
+        var clubCompetitions = ImportClubCompetitions(saveFilePaths, countries);
+        var clubs = ImportClubs(saveFilePaths, countries, clubCompetitions);
         ImportPlayers(saveFilePaths, countries, clubs);
     }
 
@@ -108,13 +108,13 @@ internal class DataImporter(Action<string> reportProgress)
         return countries;
     }
 
-    private List<SaveIdMapper> ImportCompetitions(
+    private List<SaveIdMapper> ImportClubCompetitions(
         string[] saveFilePaths,
         List<SaveIdMapper> countriesMapping)
     {
         return ImportData(x => x.ClubCompetitions,
             saveFilePaths,
-            "competitions",
+            "club_competitions",
             new (string, DbType, Func<ClubCompetition, int, object>)[]
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
@@ -129,7 +129,7 @@ internal class DataImporter(Action<string> reportProgress)
     private List<SaveIdMapper> ImportClubs(
         string[] saveFilePaths,
         List<SaveIdMapper> countriesMapping,
-        List<SaveIdMapper> competitionsMapping)
+        List<SaveIdMapper> clubCompetitionsMapping)
     {
         return ImportData(x => x.Clubs,
             saveFilePaths,
@@ -140,9 +140,9 @@ internal class DataImporter(Action<string> reportProgress)
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
                 ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(countriesMapping, iFile, d.NationId)),
                 ("reputation", DbType.Int32, (d, iFile) => d.Reputation),
-                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(competitionsMapping, iFile, d.DivisionId)),
+                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId)),
             },
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId), ";", GetMapDbId(competitionsMapping, iFile, d.DivisionId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(countriesMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
     private void ImportPlayers(
