@@ -31,6 +31,7 @@ internal class DataImporter(Action<string> reportProgress)
         var nations = ImportNations(saveFilePaths, confederations);
         var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
+        SetClubsInformation(saveFilePaths, clubs);
         ImportPlayers(saveFilePaths, nations, clubs);
     }
 
@@ -139,8 +140,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
                 ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
-                ("reputation", DbType.Int32, (d, iFile) => d.Reputation),
-                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId)),
+                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId))
             },
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
@@ -293,6 +293,121 @@ internal class DataImporter(Action<string> reportProgress)
                 _reportProgress($"Player '{keyParts[0]}' has been created for file {fileName}.");
             }
             iFile++;
+        }
+    }
+
+    private void SetClubsInformation(string[] saveFilePaths, List<SaveIdMapper> clubsMapping)
+    {
+        _reportProgress("Computes clubs information...");
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE clubs " +
+            "SET rival_club_1 = @rival_club_1, rival_club_2 = @rival_club_2, rival_club_3 = @rival_club_3, " +
+            "reputation = @reputation, bank = @bank, facilities = @facilities " +
+            "WHERE id = @id";
+        command.SetParameter("rival_club_1", DbType.Int32);
+        command.SetParameter("rival_club_2", DbType.Int32);
+        command.SetParameter("rival_club_3", DbType.Int32);
+        command.SetParameter("reputation", DbType.Int32);
+        command.SetParameter("bank", DbType.Int32);
+        command.SetParameter("facilities", DbType.Int32);
+        command.SetParameter("id", DbType.Int32);
+        command.Prepare();
+
+        foreach (var clubIdMap in clubsMapping)
+        {
+            var keysCount = clubIdMap.SavesId.Keys.Count;
+
+            var RivalClub1List = new List<int>(keysCount);
+            var RivalClub2List = new List<int>(keysCount);
+            var RivalClub3List = new List<int>(keysCount);
+            var reputationList = new List<int>(keysCount);
+            var facilitiesList = new List<int>(keysCount);
+            var bankList = new List<int>(keysCount);
+
+            foreach (var fileId in clubIdMap.SavesId.Keys)
+            {
+                var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
+
+                // ignore the special of "Dynamo Moscow' duplicated
+                var club = data.Clubs[clubIdMap.SavesId[fileId][0]];
+
+                reputationList.Add(club.Reputation);
+                facilitiesList.Add(club.Facilities);
+                bankList.Add(club.Bank);
+
+                if (club.RivalClub1 >= 0)
+                {
+                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub1));
+                    if (!match.Equals(default(SaveIdMapper)))
+                    {
+                        RivalClub1List.Add(match.DbId);
+                    }
+                }
+
+                if (club.RivalClub2 >= 0)
+                {
+                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub2));
+                    if (!match.Equals(default(SaveIdMapper)))
+                    {
+                        RivalClub2List.Add(match.DbId);
+                    }
+                }
+
+                if (club.RivalClub3 >= 0)
+                {
+                    var match = clubsMapping.FirstOrDefault(x => x.SavesId.ContainsKey(fileId) && x.SavesId[fileId].Any(z => z == club.RivalClub3));
+                    if (!match.Equals(default(SaveIdMapper)))
+                    {
+                        RivalClub3List.Add(match.DbId);
+                    }
+                }
+            }
+
+            var clubGroup1 = RivalClub1List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
+            var clubGroup2 = RivalClub2List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
+            var clubGroup3 = RivalClub3List.GroupBy(x => x).OrderByDescending(x => x.Count()).FirstOrDefault();
+            var bankGroup = bankList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
+            var reputationGroup = reputationList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
+            var facilitiesGroup = facilitiesList.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
+
+            var dbClub1 = clubGroup1 != null && (clubGroup1.Count() >= Settings.MinValueOccurenceRate * keysCount
+                || RivalClub1List.Count == keysCount)
+                ? (object)clubGroup1.Key
+                : DBNull.Value;
+
+            var dbClub2 = clubGroup2 != null && (clubGroup2.Count() >= Settings.MinValueOccurenceRate * keysCount
+                || RivalClub2List.Count == keysCount)
+                ? (object)clubGroup2.Key
+                : DBNull.Value;
+
+            var dbClub3 = clubGroup3 != null && (clubGroup3.Count() >= Settings.MinValueOccurenceRate * keysCount
+                || RivalClub3List.Count == keysCount)
+                ? (object)clubGroup3.Key
+                : DBNull.Value;
+
+            var bank = bankGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
+                ? bankGroup.Key
+                : (int)Math.Round(bankList.Average());
+
+            var facilities = facilitiesGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
+                ? facilitiesGroup.Key
+                : (int)Math.Round(facilitiesList.Average());
+
+            var reputation = reputationGroup.Count() >= Settings.MinValueOccurenceRate * keysCount
+                ? reputationGroup.Key
+                : (int)Math.Round(reputationList.Average());
+
+            command.Parameters["@id"].Value = clubIdMap.DbId;
+            command.Parameters["@rival_club_1"].Value = dbClub1;
+            command.Parameters["@rival_club_2"].Value = dbClub2;
+            command.Parameters["@rival_club_3"].Value = dbClub3;
+            command.Parameters["@bank"].Value = bank;
+            command.Parameters["@facilities"].Value = facilities;
+            command.Parameters["@reputation"].Value = reputation;
+            command.ExecuteNonQuery();
         }
     }
 
