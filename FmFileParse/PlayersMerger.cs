@@ -12,7 +12,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
     private static readonly string[] SqlColumns = ["occurences", .. Settings.CommonSqlColumns];
 
-    public void ProceedToMerge()
+    public void ProceedToMerge(DataImporter dataImporter, string[] saveFilePaths)
     {
         RemoveDataFromPlayersTable();
 
@@ -115,7 +115,11 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
         _reportProgress("Saves savefiles references map...");
 
-        DataImporter.SetSaveFileReferences(_getConnection, collectedDbIdMap, nameof(Player));
+        dataImporter.SetSaveFileReferences(collectedDbIdMap, nameof(Player));
+
+        _reportProgress("Updates club's staff information...");
+
+        dataImporter.UpdateStaffOnClubs(collectedDbIdMap, saveFilePaths);
     }
 
     private void BulkInsertPlayerMergeStatistics(

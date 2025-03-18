@@ -39,7 +39,7 @@ if (choice == 2 || choice == 3)
 {
     var merger = new PlayersMerger(saveFiles.Length, Console.WriteLine);
 
-    merger.ProceedToMerge();
+    merger.ProceedToMerge(new DataImporter(Console.WriteLine), saveFiles);
 }
 
 Console.WriteLine("Process is done; Press any key to close.");

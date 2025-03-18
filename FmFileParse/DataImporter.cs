@@ -29,22 +29,112 @@ internal class DataImporter(Action<string> reportProgress)
         ClearAllData();
 
         var confederations = ImportConfederations(saveFilePaths);
-        SetSaveFileReferences(_getConnection, confederations, nameof(Confederation));
+        SetSaveFileReferences(confederations, nameof(Confederation));
 
         var nations = ImportNations(saveFilePaths, confederations);
-        SetSaveFileReferences(_getConnection, nations, nameof(Nation));
+        SetSaveFileReferences(nations, nameof(Nation));
 
         var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
-        SetSaveFileReferences(_getConnection, clubCompetitions, nameof(ClubCompetition));
+        SetSaveFileReferences(clubCompetitions, nameof(ClubCompetition));
 
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
         SetClubsInformation(saveFilePaths, clubs);
-        SetSaveFileReferences(_getConnection, clubs, nameof(Club));
+        SetSaveFileReferences(clubs, nameof(Club));
 
         ImportPlayers(saveFilePaths, nations, clubs);
     }
 
-    internal static void SetSaveFileReferences(Func<MySqlConnection> getConnection, List<SaveIdMapper> data, string dataTypeName)
+    internal void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
+    {
+        using var wConnection = _getConnection();
+        wConnection.Open();
+        using var wCommand = wConnection.CreateCommand();
+        wCommand.CommandText = "UPDATE clubs " +
+            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
+            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
+            "WHERE id = @id";
+        wCommand.SetParameter("liked_staff_1", DbType.Int32);
+        wCommand.SetParameter("liked_staff_2", DbType.Int32);
+        wCommand.SetParameter("liked_staff_3", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_1", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_2", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_3", DbType.Int32);
+        wCommand.SetParameter("id", DbType.Int32);
+        wCommand.Prepare();
+
+        int? GetMatchDbId(int pSaveId, int fileId)
+        {
+            if (pSaveId < 0)
+            {
+                return null;
+            }
+
+            var match = players.FirstOrDefault(x => x.SaveId.Any(kvp => kvp.Key == fileId && kvp.Value == pSaveId));
+            if (match.Equals(default(SaveIdMapper)))
+            {
+                return null;
+            }
+
+            return match.DbId;
+        }
+
+        var aggregatedData = new Dictionary<int, List<(int? ls1, int? ls2, int? ls3, int? ds1, int? ds2, int? ds3)>>(players.Count);
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM save_files_references WHERE data_type = @data_type ORDER BY data_id, file_id";
+        command.SetParameter("@data_type", DbType.String, nameof(Club));
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var fileId = reader.GetInt32("file_id");
+            var pId = reader.GetInt32("data_id");
+
+            var saveData = GetSaveGameDataFromCache(saveFilePaths[fileId]);
+            var club = saveData.Clubs[reader.GetInt32("save_id")];
+            
+            var ls1 = GetMatchDbId(club.LikedStaff1, fileId);
+            var ls2 = GetMatchDbId(club.LikedStaff2, fileId);
+            var ls3 = GetMatchDbId(club.LikedStaff3, fileId);
+            var ds1 = GetMatchDbId(club.DislikedStaff1, fileId);
+            var ds2 = GetMatchDbId(club.DislikedStaff2, fileId);
+            var ds3 = GetMatchDbId(club.DislikedStaff3, fileId);
+
+            if (!aggregatedData.TryGetValue(pId, out var value))
+            {
+                value = new List<(int? ls1, int? ls2, int? ls3, int? ds1, int? ds2, int? ds3)>(12);
+                aggregatedData.Add(pId, value);
+            }
+
+            value.Add((ls1, ls2, ls3, ds1, ds2, ds3));
+        }
+
+        foreach (var pid in aggregatedData.Keys)
+        {
+            var ls1 = aggregatedData[pid].GetMaxOccurence(x => x.ls1)!;
+            var ls2 = aggregatedData[pid].GetMaxOccurence(x => x.ls2)!;
+            var ls3 = aggregatedData[pid].GetMaxOccurence(x => x.ls3)!;
+            var ds1 = aggregatedData[pid].GetMaxOccurence(x => x.ds1)!;
+            var ds2 = aggregatedData[pid].GetMaxOccurence(x => x.ds2)!;
+            var ds3 = aggregatedData[pid].GetMaxOccurence(x => x.ds3)!;
+
+            if (ls1.Key.HasValue || ls2.Key.HasValue || ls3.Key.HasValue
+                || ds1.Key.HasValue || ds2.Key.HasValue || ds3.Key.HasValue)
+            {
+                wCommand.Parameters["@liked_staff_1"].Value = (object?)ls1.Key ?? DBNull.Value;
+                wCommand.Parameters["@liked_staff_2"].Value = (object?)ls2.Key ?? DBNull.Value;
+                wCommand.Parameters["@liked_staff_3"].Value = (object?)ls3.Key ?? DBNull.Value;
+                wCommand.Parameters["@disliked_staff_1"].Value = (object?)ds1.Key ?? DBNull.Value;
+                wCommand.Parameters["@disliked_staff_2"].Value = (object?)ds2.Key ?? DBNull.Value;
+                wCommand.Parameters["@disliked_staff_3"].Value = (object?)ds3.Key ?? DBNull.Value;
+                wCommand.Parameters["@id"].Value = pid;
+                wCommand.ExecuteNonQuery();
+            }
+        }
+    }
+
+    internal void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
     {
         if (data.Count == 0)
         {
@@ -65,7 +155,7 @@ internal class DataImporter(Action<string> reportProgress)
                 }
             }
 
-            using var connection = getConnection();
+            using var connection = _getConnection();
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = $"INSERT INTO save_files_references ({string.Join(", ", Settings.SaveFilesReferencesColumns)}) " +
