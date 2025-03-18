@@ -33,6 +33,43 @@ internal class DataImporter(Action<string> reportProgress)
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
         SetClubsInformation(saveFilePaths, clubs);
         ImportPlayers(saveFilePaths, nations, clubs);
+        SetSaveFileReferences(confederations, nations, clubCompetitions, clubs);
+    }
+
+    private void SetSaveFileReferences(List<SaveIdMapper> confederations, List<SaveIdMapper> nations, List<SaveIdMapper> clubCompetitions, List<SaveIdMapper> clubs)
+    {
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = Settings.SaveFilesReferencesColumns.GetInsertQuery("save_files_references");
+        command.SetParameter("@data_type", DbType.String);
+        command.SetParameter("@data_id", DbType.Int32);
+        command.SetParameter("@file_id", DbType.Int32);
+        command.SetParameter("@save_id", DbType.Int32);
+        command.Prepare();
+
+        var allMaps = new Dictionary<string, List<SaveIdMapper>>
+        {
+            { nameof(Confederation), confederations },
+            { nameof(Nation), nations },
+            { nameof(ClubCompetition), clubCompetitions },
+            { nameof(Club), clubs },
+        };
+
+        foreach (var mapKey in allMaps.Keys)
+        {
+            command.Parameters["@data_type"].Value = mapKey;
+            foreach (var cMap in allMaps[mapKey])
+            {
+                command.Parameters["@data_id"].Value = cMap.DbId;
+                foreach (var cMapIdKey in cMap.SaveId.Keys)
+                {
+                    command.Parameters["@file_id"].Value = cMapIdKey;
+                    command.Parameters["@save_id"].Value = cMap.SaveId[cMapIdKey];
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
     }
 
     private void ClearAllData()
@@ -47,6 +84,9 @@ internal class DataImporter(Action<string> reportProgress)
         command.ExecuteNonQuery();
 
         command.CommandText = "TRUNCATE TABLE players_merge_statistics";
+        command.ExecuteNonQuery();
+
+        command.CommandText = "TRUNCATE TABLE save_files_references";
         command.ExecuteNonQuery();
 
         foreach (var table in ResetIncrementTables)
