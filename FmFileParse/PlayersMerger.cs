@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using FmFileParse.Models;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -28,6 +29,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         SetForeignKeysCheck(false);
 
         var collectedMergeInfo = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
+        var collectedDbIdMap = new List<SaveIdMapper>(10000);
 
         using var namesReader = distinctPlayersCmd.ExecuteReader();
         while (namesReader.Read())
@@ -53,7 +55,11 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
                         clubDobNamePlayersCmd.Parameters["@club_id"].Value = playersByClubDobRd["club_id"];
                         clubDobNamePlayersCmd.Parameters["@date_of_birth"].Value = playersByClubDobRd["date_of_birth"];
                         using var clubDobNamePlayersRd = clubDobNamePlayersCmd.ExecuteReader();
-                        CreatePlayerFromUnmergedPlayers(name, clubDobNamePlayersRd, writePlayerCmd, collectedMergeInfo);
+                        var mapId = CreatePlayerFromUnmergedPlayers(name, clubDobNamePlayersRd, writePlayerCmd, collectedMergeInfo);
+                        if (mapId.HasValue)
+                        {
+                            collectedDbIdMap.Add(mapId.Value);
+                        }
                     }
                 }
                 else
@@ -65,7 +71,11 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
                         SetNameValuesOnCommand(clubNamePlayersCmd, name);
                         clubNamePlayersCmd.Parameters["@club_id"].Value = playersByClubRd["club_id"];
                         using var clubNamePlayersRd = clubNamePlayersCmd.ExecuteReader();
-                        CreatePlayerFromUnmergedPlayers(name, clubNamePlayersRd, writePlayerCmd, collectedMergeInfo);
+                        var mapId = CreatePlayerFromUnmergedPlayers(name, clubNamePlayersRd, writePlayerCmd, collectedMergeInfo);
+                        if (mapId.HasValue)
+                        {
+                            collectedDbIdMap.Add(mapId.Value);
+                        }
                     }
                 }
             }
@@ -73,7 +83,11 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
             {
                 SetNameValuesOnCommand(playersByNameCmd, name);
                 using var playersByNameRd = playersByNameCmd.ExecuteReader();
-                CreatePlayerFromUnmergedPlayers(name, playersByNameRd, writePlayerCmd, collectedMergeInfo);
+                var mapId = CreatePlayerFromUnmergedPlayers(name, playersByNameRd, writePlayerCmd, collectedMergeInfo);
+                if (mapId.HasValue)
+                {
+                    collectedDbIdMap.Add(mapId.Value);
+                }
             }
 
             if (collectedMergeInfo.Count >= 500)
@@ -98,6 +112,30 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         playersCountCmd.Finalize();
         playersByNameCmd.Finalize();
         writePlayerCmd.Finalize();
+
+        _reportProgress("Saves savefiles references map...");
+
+        // TODO: duplication
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = Settings.SaveFilesReferencesColumns.GetInsertQuery("save_files_references");
+        command.SetParameter("data_type", DbType.String, nameof(Player));
+        command.SetParameter("data_id", DbType.Int32);
+        command.SetParameter("file_id", DbType.Int32);
+        command.SetParameter("save_id", DbType.Int32);
+        command.Prepare();
+
+        foreach (var cMap in collectedDbIdMap)
+        {
+            command.Parameters["@data_id"].Value = cMap.DbId;
+            foreach (var cMapIdKey in cMap.SaveId.Keys)
+            {
+                command.Parameters["@file_id"].Value = cMapIdKey;
+                command.Parameters["@save_id"].Value = cMap.SaveId[cMapIdKey];
+                command.ExecuteNonQuery();
+            }
+        }
     }
 
     private void BulkInsertPlayerMergeStatistics(
@@ -217,7 +255,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         command.CommandText = "SELECT COUNT(*) " +
             "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
-            "GROUP BY filename, club_id " +
+            "GROUP BY file_id, club_id " +
             "ORDER BY COUNT(*) DESC";
         command.SetParameter("first_name", DbType.String);
         command.SetParameter("last_name", DbType.String);
@@ -246,7 +284,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         command.CommandText = $"SELECT COUNT(*) " +
             "FROM unmerged_players " +
             $"WHERE {GetPlayerNameSqlEquality()} " +
-            $"GROUP BY filename " +
+            $"GROUP BY file_id " +
             $"ORDER BY COUNT(*) DESC";
         command.SetParameter("first_name", DbType.String);
         command.SetParameter("last_name", DbType.String);
@@ -289,39 +327,60 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
+
+        command.CommandText = "DELETE FROM save_files_references WHERE data_type = @data_type";
+        command.SetParameter("@data_type", DbType.String, nameof(Player));
+        command.ExecuteNonQuery();
+
+        command.Parameters.Clear();
         command.CommandText = "TRUNCATE TABLE players_merge_statistics";
         command.ExecuteNonQuery();
+
         command.CommandText = "DELETE FROM players";
         command.ExecuteNonQuery();
+
         command.CommandText = $"ALTER TABLE players AUTO_INCREMENT = 1";
         command.ExecuteNonQuery();
     }
 
-    private void CreatePlayerFromUnmergedPlayers(
+    private SaveIdMapper? CreatePlayerFromUnmergedPlayers(
         PlayerName playerName,
         MySqlDataReader playerInfoReader, 
         MySqlCommand insertPlayerCommand,
         Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
     {
         var allFilePlayerData = new List<Dictionary<string, object>>(_numberOfSaves);
+        var collectedSaveIds = new Dictionary<int, int>();
         while (playerInfoReader.Read())
         {
             var singleFilePlayerData = new Dictionary<string, object>(playerInfoReader.FieldCount);
+            var saveId = -1;
+            var fileId = -1;
             for (var i = 0; i < playerInfoReader.FieldCount; i++)
             {
-                if (!Settings.UnmergedOnlyColumns.Contains(playerInfoReader.GetName(i)))
+                var colName = playerInfoReader.GetName(i);
+                if (!Settings.UnmergedOnlyColumns.Contains(colName))
                 {
-                    singleFilePlayerData.Add(playerInfoReader.GetName(i), playerInfoReader[i]);
+                    singleFilePlayerData.Add(colName, playerInfoReader[i]);
+                }
+                else if (colName == "id")
+                {
+                    saveId = playerInfoReader.GetInt32(i);
+                }
+                else if (colName == "file_id")
+                {
+                    fileId = playerInfoReader.GetInt32(i);
                 }
             }
             allFilePlayerData.Add(singleFilePlayerData);
+            collectedSaveIds.Add(fileId, saveId);
         }
 
         // there's not enough data across all files for the player
         if (allFilePlayerData.Count / (decimal)_numberOfSaves < Settings.MinPlayerOccurencesRate)
         {
             _reportProgress($"The player '{playerName}' has not enough data to be merged.");
-            return;
+            return null;
         }
 
         var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>(SqlColumns.Length);
@@ -355,9 +414,17 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         }
         insertPlayerCommand.ExecuteNonQuery();
 
-        collectedMergeInfo.Add((int)insertPlayerCommand.LastInsertedId, colsStats);
+        var dbPlayerId = (int)insertPlayerCommand.LastInsertedId;
+
+        collectedMergeInfo.Add(dbPlayerId, colsStats);
 
         _reportProgress($"The player '{playerName}' has been merged.");
+
+        return new SaveIdMapper
+        {
+            DbId = dbPlayerId,
+            SaveId = collectedSaveIds
+        };
     }
 
     private static (object computedValue, MergeType mergeType, int countValues) CrawlColumnValuesForMerge(

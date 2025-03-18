@@ -42,10 +42,10 @@ internal class DataImporter(Action<string> reportProgress)
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = Settings.SaveFilesReferencesColumns.GetInsertQuery("save_files_references");
-        command.SetParameter("@data_type", DbType.String);
-        command.SetParameter("@data_id", DbType.Int32);
-        command.SetParameter("@file_id", DbType.Int32);
-        command.SetParameter("@save_id", DbType.Int32);
+        command.SetParameter("data_type", DbType.String);
+        command.SetParameter("data_id", DbType.Int32);
+        command.SetParameter("file_id", DbType.Int32);
+        command.SetParameter("save_id", DbType.Int32);
         command.Prepare();
 
         var allMaps = new Dictionary<string, List<SaveIdMapper>>
@@ -229,7 +229,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ];
 
                 command.Parameters["@id"].Value = player.Id;
-                command.Parameters["@filename"].Value = fileName;
+                command.Parameters["@file_id"].Value = iFile;
                 command.Parameters["@first_name"].Value = firstName;
                 command.Parameters["@last_name"].Value = lastName;
                 command.Parameters["@common_name"].Value = commmonName;
@@ -506,14 +506,5 @@ internal class DataImporter(Action<string> reportProgress)
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
-    }
-
-    private readonly struct SaveIdMapper
-    {
-        public string Key { get; init; }
-
-        public int DbId { get; init; }
-
-        public Dictionary<int, int> SaveId { get; init; }
     }
 }

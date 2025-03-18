@@ -23,7 +23,7 @@ internal static class Settings
 
     public static readonly string[] StringColumns =
     [
-        "filename", "first_name", "last_name", "common_name", "transfer_status", "squad_status"
+        "first_name", "last_name", "common_name", "transfer_status", "squad_status"
     ];
 
     public static readonly string[] DateColumns =
@@ -68,7 +68,7 @@ internal static class Settings
 
     public static readonly string[] UnmergedOnlyColumns =
     [
-        "id", "filename"
+        "id", "file_id"
     ];
 
     public static readonly string[] ForeignKeyColumns =

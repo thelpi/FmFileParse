@@ -9,13 +9,13 @@ internal static class MySqlHelpers
     /// Creates and adds a parameter to the command.
     /// </summary>
     /// <param name="command"></param>
-    /// <param name="name">Name without '@'.</param>
+    /// <param name="name">Name with or without '@'.</param>
     /// <param name="type"></param>
     /// <param name="value">Use <c>null</c> to not set any value.</param>
     internal static void SetParameter(this MySqlCommand command, string name, DbType type, object? value = null)
     {
         var pCol = command.CreateParameter();
-        pCol.ParameterName = $"@{name}";
+        pCol.ParameterName = name.StartsWith("@") ? name : $"@{name}";
         pCol.DbType = type;
         if (value is not null)
         {
