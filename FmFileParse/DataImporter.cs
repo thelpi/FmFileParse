@@ -27,48 +27,50 @@ internal class DataImporter(Action<string> reportProgress)
     public void ProceedToImport(string[] saveFilePaths)
     {
         ClearAllData();
+
         var confederations = ImportConfederations(saveFilePaths);
+        SetSaveFileReferences(_getConnection, confederations, nameof(Confederation));
+
         var nations = ImportNations(saveFilePaths, confederations);
+        SetSaveFileReferences(_getConnection, nations, nameof(Nation));
+
         var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
+        SetSaveFileReferences(_getConnection, clubCompetitions, nameof(ClubCompetition));
+
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
         SetClubsInformation(saveFilePaths, clubs);
+        SetSaveFileReferences(_getConnection, clubs, nameof(Club));
+
         ImportPlayers(saveFilePaths, nations, clubs);
-        SetSaveFileReferences(confederations, nations, clubCompetitions, clubs);
     }
 
-    private void SetSaveFileReferences(List<SaveIdMapper> confederations, List<SaveIdMapper> nations, List<SaveIdMapper> clubCompetitions, List<SaveIdMapper> clubs)
+    internal static void SetSaveFileReferences(Func<MySqlConnection> getConnection, List<SaveIdMapper> data, string dataTypeName)
     {
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = Settings.SaveFilesReferencesColumns.GetInsertQuery("save_files_references");
-        command.SetParameter("data_type", DbType.String);
-        command.SetParameter("data_id", DbType.Int32);
-        command.SetParameter("file_id", DbType.Int32);
-        command.SetParameter("save_id", DbType.Int32);
-        command.Prepare();
-
-        var allMaps = new Dictionary<string, List<SaveIdMapper>>
+        if (data.Count == 0)
         {
-            { nameof(Confederation), confederations },
-            { nameof(Nation), nations },
-            { nameof(ClubCompetition), clubCompetitions },
-            { nameof(Club), clubs },
-        };
+            return;
+        }
 
-        foreach (var mapKey in allMaps.Keys)
+        const int CountByLot = 100;
+
+        var lotCount = (data.Count / CountByLot) + 1;
+        for (var i = 0; i < lotCount; i++)
         {
-            command.Parameters["@data_type"].Value = mapKey;
-            foreach (var cMap in allMaps[mapKey])
+            var sqlRowValues = new List<string>(CountByLot * 12);
+            foreach (var cMap in data.Skip(i * CountByLot).Take(CountByLot))
             {
-                command.Parameters["@data_id"].Value = cMap.DbId;
                 foreach (var cMapIdKey in cMap.SaveId.Keys)
                 {
-                    command.Parameters["@file_id"].Value = cMapIdKey;
-                    command.Parameters["@save_id"].Value = cMap.SaveId[cMapIdKey];
-                    command.ExecuteNonQuery();
+                    sqlRowValues.Add($"('{MySqlHelper.EscapeString(dataTypeName)}', {cMap.DbId}, {cMapIdKey}, {cMap.SaveId[cMapIdKey]})");
                 }
             }
+
+            using var connection = getConnection();
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"INSERT INTO save_files_references ({string.Join(", ", Settings.SaveFilesReferencesColumns)}) " +
+                $"VALUES {string.Join(", ", sqlRowValues)}";
+            command.ExecuteNonQuery();
         }
     }
 

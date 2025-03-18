@@ -115,27 +115,7 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
 
         _reportProgress("Saves savefiles references map...");
 
-        // TODO: duplication
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = Settings.SaveFilesReferencesColumns.GetInsertQuery("save_files_references");
-        command.SetParameter("data_type", DbType.String, nameof(Player));
-        command.SetParameter("data_id", DbType.Int32);
-        command.SetParameter("file_id", DbType.Int32);
-        command.SetParameter("save_id", DbType.Int32);
-        command.Prepare();
-
-        foreach (var cMap in collectedDbIdMap)
-        {
-            command.Parameters["@data_id"].Value = cMap.DbId;
-            foreach (var cMapIdKey in cMap.SaveId.Keys)
-            {
-                command.Parameters["@file_id"].Value = cMapIdKey;
-                command.Parameters["@save_id"].Value = cMap.SaveId[cMapIdKey];
-                command.ExecuteNonQuery();
-            }
-        }
+        DataImporter.SetSaveFileReferences(_getConnection, collectedDbIdMap, nameof(Player));
     }
 
     private void BulkInsertPlayerMergeStatistics(

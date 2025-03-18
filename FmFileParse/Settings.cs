@@ -80,6 +80,7 @@ internal static class Settings
 
     public static readonly string[] SaveFilesReferencesColumns =
     [
+        // order is important
         "data_type", "data_id", "file_id", "save_id"
     ];
 }
