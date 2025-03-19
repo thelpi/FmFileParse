@@ -72,4 +72,40 @@ public class Staff : BaseData
 
     [DataPosition(93)]
     public byte Temperament { get; set; }
+
+    [DataPosition(97)]
+    public int LikedClub1 { get; set; }
+
+    [DataPosition(101)]
+    public int LikedClub2 { get; set; }
+
+    [DataPosition(105)]
+    public int LikedClub3 { get; set; }
+
+    [DataPosition(109)]
+    public int DislikedClub1 { get; set; }
+
+    [DataPosition(113)]
+    public int DislikedClub2 { get; set; }
+
+    [DataPosition(117)]
+    public int DislikedClub3 { get; set; }
+
+    [DataPosition(121)]
+    public int LikedStaff1 { get; set; }
+
+    [DataPosition(125)]
+    public int LikedStaff2 { get; set; }
+
+    [DataPosition(129)]
+    public int LikedStaff3 { get; set; }
+
+    [DataPosition(133)]
+    public int DislikedStaff1 { get; set; }
+
+    [DataPosition(137)]
+    public int DislikedStaff2 { get; set; }
+
+    [DataPosition(141)]
+    public int DislikedStaff3 { get; set; }
 }

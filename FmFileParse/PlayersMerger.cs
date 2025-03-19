@@ -120,6 +120,10 @@ internal class PlayersMerger(int numberOfSaves, Action<string> reportProgress)
         _reportProgress("Updates club's staff information...");
 
         dataImporter.UpdateStaffOnClubs(collectedDbIdMap, saveFilePaths);
+
+        _reportProgress("Updates players's staff preferences information...");
+
+        dataImporter.SetPlayerStaffPreferences(collectedDbIdMap, saveFilePaths);
     }
 
     private void BulkInsertPlayerMergeStatistics(

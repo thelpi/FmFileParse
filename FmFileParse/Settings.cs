@@ -63,7 +63,10 @@ internal static class Settings
         "finishing", "flair", "handling", "heading", "important_matches", "influence", "injury_proneness", "jumping",
         "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones", "pace", "passing",
         "penalties", "positioning", "pressure", "professionalism", "reflexes", "set_pieces", "sportsmanship", "stamina",
-        "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
+        "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate",
+        // preferences
+        "liked_staff_1", "liked_staff_2", "liked_staff_3", "disliked_staff_1", "disliked_staff_2", "disliked_staff_3",
+        "liked_club_1", "liked_club_2", "liked_club_3", "disliked_club_1", "disliked_club_2", "disliked_club_3"
     ];
 
     public static readonly string[] UnmergedOnlyColumns =
@@ -73,7 +76,11 @@ internal static class Settings
 
     public static readonly string[] ForeignKeyColumns =
     [
-        "club_id", "nation_id", "secondary_nation_id"
+        "club_id", "nation_id", "secondary_nation_id",
+        "liked_staff_1", "liked_staff_2", "liked_staff_3",
+        "disliked_staff_1", "disliked_staff_2", "disliked_staff_3",
+        "liked_club_1", "liked_club_2", "liked_club_3",
+        "disliked_club_1", "disliked_club_2", "disliked_club_3"
     ];
 
     public static readonly Encoding DefaultEncoding = Encoding.Latin1;

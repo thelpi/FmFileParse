@@ -134,6 +134,83 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
+    internal void SetPlayerStaffPreferences(List<SaveIdMapper> playersMapping, string[] saveFilePaths)
+    {
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE clubs " +
+            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
+            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
+            "WHERE id = @id";
+        command.SetParameter("liked_staff_1", DbType.Int32);
+        command.SetParameter("liked_staff_2", DbType.Int32);
+        command.SetParameter("liked_staff_3", DbType.Int32);
+        command.SetParameter("disliked_staff_1", DbType.Int32);
+        command.SetParameter("disliked_staff_2", DbType.Int32);
+        command.SetParameter("disliked_staff_3", DbType.Int32);
+        command.Prepare();
+
+        void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
+        {
+            if (saveId >= 0)
+            {
+                var match = playersMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentId) && currentId == saveId);
+                if (!match.Equals(default(SaveIdMapper)))
+                {
+                    dbIdList.Add(match.DbId);
+                }
+            }
+        }
+
+        object MaxOrAvgOrNull(List<int> source, int count)
+        {
+            var group = source.GetMaxOccurence(x => x);
+            if (group is not null
+                && (group.Count() >= Settings.MinValueOccurenceRate * count || source.Count == count))
+            {
+                return group.Key;
+            }
+            return DBNull.Value;
+        }
+
+        foreach (var playerIdMap in playersMapping)
+        {
+            var keysCount = playerIdMap.SaveId.Keys.Count;
+
+            var LikedStaff1List = new List<int>(keysCount);
+            var LikedStaff2List = new List<int>(keysCount);
+            var LikedStaff3List = new List<int>(keysCount);
+            var DislikedStaff1List = new List<int>(keysCount);
+            var DislikedStaff2List = new List<int>(keysCount);
+            var DislikedStaff3List = new List<int>(keysCount);
+
+            foreach (var fileId in playerIdMap.SaveId.Keys)
+            {
+                var player = GetSaveGameDataFromCache(saveFilePaths[fileId])
+                    .Players[playerIdMap.SaveId[fileId]];
+
+                AddIfMatch(LikedStaff1List, player.LikedStaff1, fileId);
+                AddIfMatch(LikedStaff2List, player.LikedStaff2, fileId);
+                AddIfMatch(LikedStaff3List, player.LikedStaff3, fileId);
+                AddIfMatch(DislikedStaff1List, player.DislikedStaff1, fileId);
+                AddIfMatch(DislikedStaff2List, player.DislikedStaff2, fileId);
+                AddIfMatch(DislikedStaff3List, player.DislikedStaff3, fileId);
+            }
+
+            command.Parameters["@id"].Value = playerIdMap.DbId;
+            command.Parameters["@liked_staff_1"].Value = MaxOrAvgOrNull(LikedStaff1List, keysCount);
+            command.Parameters["@liked_staff_2"].Value = MaxOrAvgOrNull(LikedStaff2List, keysCount);
+            command.Parameters["@liked_staff_3"].Value = MaxOrAvgOrNull(LikedStaff3List, keysCount);
+            command.Parameters["@disliked_staff_1"].Value = MaxOrAvgOrNull(DislikedStaff1List, keysCount);
+            command.Parameters["@disliked_staff_2"].Value = MaxOrAvgOrNull(DislikedStaff2List, keysCount);
+            command.Parameters["@disliked_staff_3"].Value = MaxOrAvgOrNull(DislikedStaff3List, keysCount);
+            command.ExecuteNonQuery();
+
+            _reportProgress($"Information updated for playerId: {playerIdMap.DbId}.");
+        }
+    }
+
     internal void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
     {
         if (data.Count == 0)
@@ -368,10 +445,8 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@side_left"].Value = player.LeftSide;
                 command.Parameters["@side_right"].Value = player.RightSide;
                 command.Parameters["@side_center"].Value = player.CentreSide;
-                // TODO
                 command.Parameters["@squad_status"].Value = DBNull.Value;
                 command.Parameters["@transfer_status"].Value = DBNull.Value;
-
                 command.Parameters["@anticipation"].Value = player.Anticipation;
                 command.Parameters["@acceleration"].Value = player.Acceleration;
                 command.Parameters["@adaptability"].Value = player.Adaptability;
@@ -420,6 +495,19 @@ internal class DataImporter(Action<string> reportProgress)
                 command.Parameters["@throw_ins"].Value = player.ThrowIns;
                 command.Parameters["@versatility"].Value = player.Versatility;
                 command.Parameters["@work_rate"].Value = player.WorkRate;
+                command.Parameters["@liked_club_1"].Value = GetMapDbIdObject(clubsMapping, iFile, player.LikedClub1);
+                command.Parameters["@liked_club_2"].Value = GetMapDbIdObject(clubsMapping, iFile, player.LikedClub2);
+                command.Parameters["@liked_club_3"].Value = GetMapDbIdObject(clubsMapping, iFile, player.LikedClub3);
+                command.Parameters["@disliked_club_1"].Value = GetMapDbIdObject(clubsMapping, iFile, player.DislikedClub1);
+                command.Parameters["@disliked_club_2"].Value = GetMapDbIdObject(clubsMapping, iFile, player.DislikedClub2);
+                command.Parameters["@disliked_club_3"].Value = GetMapDbIdObject(clubsMapping, iFile, player.DislikedClub3);
+                // use save ID until merge
+                command.Parameters["@liked_staff_1"].Value = player.LikedStaff1;
+                command.Parameters["@liked_staff_2"].Value = player.LikedStaff2;
+                command.Parameters["@liked_staff_3"].Value = player.LikedStaff3;
+                command.Parameters["@disliked_staff_1"].Value = player.DislikedStaff1;
+                command.Parameters["@disliked_staff_2"].Value = player.DislikedStaff2;
+                command.Parameters["@disliked_staff_3"].Value = player.DislikedStaff3;
 
                 command.ExecuteNonQuery();
 
@@ -461,7 +549,7 @@ internal class DataImporter(Action<string> reportProgress)
             }
         }
 
-        object MacOrAvgOrNull(List<int> source, int count, bool isId)
+        object MaxOrAvgOrNull(List<int> source, int count, bool isId)
         {
             var group = source.GetMaxOccurence(x => x);
             if (group is not null)
@@ -505,12 +593,12 @@ internal class DataImporter(Action<string> reportProgress)
             }
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(RivalClub1List, keysCount, true);
-            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(RivalClub2List, keysCount, true);
-            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(RivalClub3List, keysCount, true);
-            command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
-            command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
-            command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
+            command.Parameters["@rival_club_1"].Value = MaxOrAvgOrNull(RivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = MaxOrAvgOrNull(RivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = MaxOrAvgOrNull(RivalClub3List, keysCount, true);
+            command.Parameters["@bank"].Value = MaxOrAvgOrNull(bankList, keysCount, false);
+            command.Parameters["@facilities"].Value = MaxOrAvgOrNull(facilitiesList, keysCount, false);
+            command.Parameters["@reputation"].Value = MaxOrAvgOrNull(reputationList, keysCount, false);
             command.ExecuteNonQuery();
 
             _reportProgress($"Information updated for clubId: {clubIdMap.DbId}.");

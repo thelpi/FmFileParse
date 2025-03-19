@@ -1,0 +1,6 @@
+﻿Remove "unmerged_players" table and merge players on the fly
+Add staff (coach)
+Settings should not contains every constants
+Fill squad status
+Fill transfer status
+Feature flipping on statistics management
