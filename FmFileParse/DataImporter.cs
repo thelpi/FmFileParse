@@ -1,7 +1,10 @@
 ﻿using System.Data;
+using System.Linq;
+using System.Numerics;
 using FmFileParse.Models;
 using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
+using Google.Protobuf.WellKnownTypes;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
@@ -41,7 +44,7 @@ internal class DataImporter(Action<string> reportProgress)
         SetClubsInformation(saveFilePaths, clubs);
         SetSaveFileReferences(clubs, nameof(Club));
 
-        ImportPlayers(saveFilePaths, nations, clubs);
+        ImportPlayers2(saveFilePaths, nations, clubs);
     }
 
     internal void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
@@ -70,12 +73,9 @@ internal class DataImporter(Action<string> reportProgress)
             }
 
             var match = players.FirstOrDefault(x => x.SaveId.Any(kvp => kvp.Key == fileId && kvp.Value == pSaveId));
-            if (match.Equals(default(SaveIdMapper)))
-            {
-                return null;
-            }
-
-            return match.DbId;
+            return match.Equals(default(SaveIdMapper))
+                ? null
+                : match.DbId;
         }
 
         var aggregatedData = new Dictionary<int, List<(int? ls1, int? ls2, int? ls3, int? ds1, int? ds2, int? ds3)>>(players.Count);
@@ -276,6 +276,355 @@ internal class DataImporter(Action<string> reportProgress)
             },
             // note: the key here should be the same as the one used in 'DataFileLoaders.ManageDuplicateClubs'
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
+    }
+
+    private void ImportPlayers2(
+        string[] saveFilePaths,
+        List<SaveIdMapper> nationsMapping,
+        List<SaveIdMapper> clubsMapping)
+    {
+        _reportProgress("Players importation starts...");
+
+        SetForeignKeysCheck(false);
+
+        var allColumns = new List<string>(Settings.CommonSqlColumns)
+        {
+            "occurences"
+        };
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = allColumns.GetInsertQuery("players");
+        foreach (var c in allColumns)
+        {
+            command.SetParameter(c, Settings.GetDbType(c));
+        }
+        command.Prepare();
+
+        var collectedMergeInfo = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
+        var collectedDbIdMap = new List<SaveIdMapper>(10000);
+
+        var nameKeys = new List<(string nameKey, int fileId, DateTime dob, int clubId, Player p)>(saveFilePaths.Length * 10000);
+        for (var fileId = 0; fileId < saveFilePaths.Length; fileId++)
+        {
+            var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
+
+            foreach (var p in data.Players)
+            {
+                var firstName = GetNameValue(p.FirstNameId, data.FirstNames);
+                var lastName = GetNameValue(p.LastNameId, data.LastNames);
+                var commmonName = GetNameValue(p.CommonNameId, data.CommonNames);
+                var clubId = GetMapDbId(clubsMapping, fileId, p.ClubId);
+                nameKeys.Add(($"{firstName};{lastName};{commmonName}".ToLowerInvariant(), fileId, p.DateOfBirth, clubId, p));
+            }
+        }
+
+        foreach (var nameKey in nameKeys.Select(x => x.nameKey).Distinct())
+        {
+            var countDistinct = nameKeys.Where(x => x.nameKey == nameKey).Select(x => x.fileId).Distinct().Count();
+            var countStandard = nameKeys.Where(x => x.nameKey == nameKey).Select(x => x.fileId).Count();
+            if (countStandard == countDistinct)
+            {
+                var players = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.p, x.fileId));
+                var mapId = InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                if (mapId.HasValue)
+                {
+                    collectedDbIdMap.Add(mapId.Value);
+                }
+            }
+            else
+            {
+                var withDob = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.nameKey, x.dob)).Distinct().ToList();
+                foreach (var dob in withDob)
+                {
+                    countDistinct = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => x.fileId).Distinct().Count();
+                    countStandard = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => x.fileId).Count();
+                    if (countStandard == countDistinct)
+                    {
+                        var players = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.p, x.fileId));
+                        InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                    }
+                    else
+                    {
+                        var withDobClub = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.nameKey, x.dob, x.clubId)).Distinct().ToList();
+                        foreach (var dobClub in withDobClub)
+                        {
+                            countDistinct = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => x.fileId).Distinct().Count();
+                            countStandard = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => x.fileId).Count();
+                            if (countStandard == countDistinct)
+                            {
+                                var players = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => (x.p, x.fileId));
+                                InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                            }
+                            else
+                            {
+                                throw new NotImplementedException();
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (collectedMergeInfo.Count >= 500)
+            {
+                BulkInsertPlayerMergeStatistics(collectedMergeInfo);
+            }
+        }
+
+        if (collectedMergeInfo.Count > 0)
+        {
+            BulkInsertPlayerMergeStatistics(collectedMergeInfo);
+        }
+
+        SetForeignKeysCheck(true);
+
+        _reportProgress("Saves savefiles references map...");
+
+        SetSaveFileReferences(collectedDbIdMap, nameof(Player));
+
+        _reportProgress("Updates club's staff information...");
+
+        UpdateStaffOnClubs(collectedDbIdMap, saveFilePaths);
+    }
+
+    private void BulkInsertPlayerMergeStatistics(
+        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
+    {
+        var informationCopy = collectedMergeInfo.ToDictionary(x => x.Key, x => x.Value);
+
+        collectedMergeInfo.Clear();
+
+        Task.Run(() =>
+        {
+            var rowsToInsert = new List<string>(informationCopy.Count * 100);
+            foreach (var playerId in informationCopy.Keys)
+            {
+                foreach (var (field, occurences, mergeType) in informationCopy[playerId])
+                {
+                    rowsToInsert.Add($"({playerId}, '{MySqlHelper.EscapeString(field)}', {occurences}, '{mergeType}')");
+                }
+            }
+            using var connection = _getConnection();
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"INSERT INTO players_merge_statistics (player_id, field, occurences, merge_type) VALUES {string.Join(", ", rowsToInsert)}";
+            command.ExecuteNonQuery();
+        });
+    }
+
+    private void SetForeignKeysCheck(bool enable)
+    {
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SET FOREIGN_KEY_CHECKS = {(enable ? 1 : 0)}";
+        command.ExecuteNonQuery();
+    }
+
+    private SaveIdMapper? InsertMergedPlayer(
+        IEnumerable<(Player, int)> players,
+        MySqlCommand insertPlayerCommand,
+        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo,
+        string[] saveFilePaths,
+        List<SaveIdMapper> nationsMapping,
+        List<SaveIdMapper> clubsMapping)
+    {
+        // there's not enough data across all files for the player
+        if (players.Count() / (decimal)12 < Settings.MinPlayerOccurencesRate)
+        {
+            _reportProgress($"The player has not enough data to be merged.");
+            return null;
+        }
+
+        var allFilePlayerData = new List<Dictionary<string, object>>(12);
+        var collectedSaveIds = new Dictionary<int, int>();
+        foreach (var (player, fileId) in players)
+        {
+            var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
+
+            var singleFilePlayerData = new Dictionary<string, object>
+            {
+                { "first_name", GetCleanDbName(player.FirstNameId, data.FirstNames) },
+                { "last_name", GetCleanDbName(player.LastNameId, data.LastNames) },
+                { "common_name", GetCleanDbName(player.CommonNameId, data.CommonNames) },
+                { "date_of_birth", player.DateOfBirth },
+                { "nation_id", GetMapDbIdObject(nationsMapping, fileId, player.NationId) },
+                { "secondary_nation_id", GetMapDbIdObject(nationsMapping, fileId, player.SecondaryNationId) },
+                { "caps", player.InternationalCaps },
+                { "international_goals", player.InternationalGoals },
+                { "right_foot", player.RightFoot },
+                { "left_foot", player.LeftFoot },
+                { "ability", player.CurrentAbility },
+                { "potential_ability", player.PotentialAbility },
+                { "home_reputation", player.HomeReputation },
+                { "current_reputation", player.CurrentReputation },
+                { "world_reputation", player.WorldReputation },
+                { "club_id", GetMapDbIdObject(clubsMapping, fileId, player.ClubId) },
+                { "value", player.Value },
+                { "contract_expiration", player.Contract?.ContractEndDate ?? (object)DBNull.Value },
+                { "wage", player.Wage },
+                { "manager_job_rel", player.Contract?.ManagerReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
+                    : 0 },
+                { "min_fee_rel", player.Contract?.MinimumFeeReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
+                    : 0 },
+                { "non_play_rel", player.Contract?.NonPlayingReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
+                    : 0 },
+                { "non_promotion_rel", player.Contract?.NonPromotionReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
+                    : 0 },
+                { "relegation_rel", player.Contract?.RelegationReleaseClause == true
+                    ? player.Contract.ReleaseClauseValue
+                    : 0 },
+                { "pos_goalkeeper", player.GoalKeeperPos },
+                { "pos_sweeper", player.SweeperPos },
+                { "pos_defender", player.DefenderPos },
+                { "pos_defensive_midfielder", player.DefensiveMidfielderPos },
+                { "pos_midfielder", player.MidfielderPos },
+                { "pos_attacking_midfielder", player.AttackingMidfielderPos },
+                { "pos_forward", player.StrikerPos },
+                { "pos_wingback", player.WingBackPos },
+                { "pos_free_role", player.FreeRolePos },
+                { "side_left", player.LeftSide },
+                { "side_right", player.RightSide },
+                { "side_center", player.CentreSide },
+                { "squad_status", DBNull.Value },
+                { "transfer_status", DBNull.Value },
+                { "anticipation", player.Anticipation },
+                { "acceleration", player.Acceleration },
+                { "adaptability", player.Adaptability },
+                { "aggression", player.Aggression },
+                { "agility", player.Agility },
+                { "ambition", player.Ambition },
+                { "balance", player.Balance },
+                { "bravery", player.Bravery },
+                { "consistency", player.Consistency },
+                { "corners", player.Corners },
+                { "creativity", player.Creativity },
+                { "crossing", player.Crossing },
+                { "decisions", player.Decisions },
+                { "determination", player.Determination },
+                { "dirtiness", player.Dirtiness },
+                { "dribbling", player.Dribbling },
+                { "finishing", player.Finishing },
+                { "flair", player.Flair },
+                { "handling", player.Handling },
+                { "heading", player.Heading },
+                { "important_matches", player.ImportantMatches },
+                { "influence", player.Influence },
+                { "injury_proneness", player.InjuryProneness },
+                { "jumping", player.Jumping },
+                { "long_shots", player.LongShots },
+                { "loyalty", player.Loyalty },
+                { "marking", player.Marking },
+                { "natural_fitness", player.NaturalFitness },
+                { "off_the_ball", player.OffTheBall },
+                { "one_on_ones", player.OneOnOnes },
+                { "pace", player.Pace },
+                { "passing", player.Passing },
+                { "penalties", player.Penalties },
+                { "positioning", player.Positioning },
+                { "pressure", player.Pressure },
+                { "professionalism", player.Professionalism },
+                { "reflexes", player.Reflexes },
+                { "set_pieces", player.FreeKicks },
+                { "sportsmanship", player.Sportsmanship },
+                { "stamina", player.Stamina },
+                { "strength", player.Strength },
+                { "tackling", player.Tackling },
+                { "teamwork", player.Teamwork },
+                { "technique", player.Technique },
+                { "temperament", player.Temperament },
+                { "throw_ins", player.ThrowIns },
+                { "versatility", player.Versatility },
+                { "work_rate", player.WorkRate }
+            };
+
+            allFilePlayerData.Add(singleFilePlayerData);
+            collectedSaveIds.Add(fileId, player.Id);
+        }
+
+        var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>(SqlColumns.Length);
+        var colsAndVals = new Dictionary<string, object>(SqlColumns.Length);
+        foreach (var col in allFilePlayerData[0].Keys)
+        {
+            Func<IEnumerable<object>, object>? averageFunc = null;
+            if (Settings.DateColumns.Contains(col))
+            {
+                averageFunc = values => values.Select(Convert.ToDateTime).Average();
+            }
+            else if (!Settings.StringColumns.Contains(col) && !Settings.ForeignKeyColumns.Contains(col))
+            {
+                averageFunc = values => (int)Math.Round(values.Select(Convert.ToInt32).Average());
+            }
+
+            var (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge(
+                allFilePlayerData,
+                allFilePlayerData.Select(_ => _[col]),
+                averageFunc);
+
+            colsAndVals.Add(col, computedValue);
+            colsStats.Add((col, countValues, mergeType));
+        }
+
+        colsAndVals.Add("occurences", allFilePlayerData.Count);
+
+        foreach (var c in colsAndVals.Keys)
+        {
+            insertPlayerCommand.Parameters[$"@{c}"].Value = colsAndVals[c];
+        }
+        insertPlayerCommand.ExecuteNonQuery();
+
+        var dbPlayerId = (int)insertPlayerCommand.LastInsertedId;
+
+        collectedMergeInfo.Add(dbPlayerId, colsStats);
+
+        _reportProgress($"The player has been merged.");
+
+        return new SaveIdMapper
+        {
+            DbId = dbPlayerId,
+            SaveId = collectedSaveIds
+        };
+    }
+
+    private static (object computedValue, MergeType mergeType, int countValues) CrawlColumnValuesForMerge(
+        List<Dictionary<string, object>> allFilePlayerData,
+        IEnumerable<object> allValues,
+        Func<IEnumerable<object>, object>? averageFunc)
+    {
+        // note: there's an arbitrary choice when the two first occurences have the same count
+        var groupedValues = allValues
+            .GroupBy(x => x)
+            .Select(x => (Value: x.Key, Count: x.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        MergeType mergeType;
+        object value;
+        if (groupedValues[0].Count < Settings.MinValueOccurenceRate * allFilePlayerData.Count)
+        {
+            if (averageFunc is not null && !groupedValues.Any(x => x.Value == DBNull.Value))
+            {
+                value = averageFunc(allValues);
+                mergeType = MergeType.Average;
+            }
+            else
+            {
+                value = groupedValues[0].Value;
+                mergeType = MergeType.ModeBelowThreshold;
+            }
+        }
+        else
+        {
+            value = groupedValues[0].Value;
+            mergeType = MergeType.ModeAboveThreshold;
+        }
+
+        return (value, mergeType, groupedValues.Count);
     }
 
     private void ImportPlayers(
@@ -598,5 +947,13 @@ internal class DataImporter(Action<string> reportProgress)
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : DBNull.Value;
+    }
+
+    private static string GetNameValue(int nameId, Dictionary<int, string> names)
+    {
+        return names.TryGetValue(nameId, out var localName)
+            && !string.IsNullOrWhiteSpace(localName)
+            ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
+            : string.Empty;
     }
 }
