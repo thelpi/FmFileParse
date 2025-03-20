@@ -35,26 +35,4 @@ internal static class MySqlHelpers
         return $"INSERT INTO {table} ({string.Join(", ", columns)}) " +
             $"VALUES ({string.Join(", ", columns.Select(x => $"@{x}"))})";
     }
-
-    /// <summary>
-    /// Disposes a command its related connection.
-    /// </summary>
-    /// <param name="command"></param>
-    internal static void Finalize(this MySqlCommand command)
-    {
-        var connection = command.Connection;
-        command.Dispose();
-        connection.Close();
-        connection.Dispose();
-    }
-
-    /// <summary>
-    /// Generates a part of a SQL query to manage a column equality including NULL.
-    /// </summary>
-    /// <param name="column"></param>
-    /// <returns>A syntax <c>([column] = [@column] OR (@column IS NULL AND column IS NULL))</c>.</returns>
-    internal static string GetSqlEqualNull(this string column)
-    {
-        return $"({column} = @{column} OR (@{column} IS NULL AND {column} IS NULL))";
-    }
 }

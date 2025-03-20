@@ -30,7 +30,7 @@ internal static class DataPositionAttributeParser
             if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
                 var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
-                propValue = reversed ? (byte)(Settings.MaxAttributeValue - sourceValue) : sourceValue;
+                propValue = reversed ? (byte)(IntrinsicAttributeAttributeParser.MaxAttributeValue - sourceValue) : sourceValue;
             }
             else if (p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
             {

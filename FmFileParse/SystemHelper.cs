@@ -5,16 +5,6 @@ internal static class SystemHelper
     private static readonly int[] Months30Days = [4, 6, 9, 11];
 
     /// <summary>
-    /// Shortcut to <see cref="Array.IndexOf(Array, object?)"/>.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="array"></param>
-    /// <param name="value"></param>
-    /// <returns></returns>
-    public static int IndexOf<T>(this T[] array, T value)
-        => Array.IndexOf(array, value);
-
-    /// <summary>
     /// Computes the average date of a list of dates.
     /// </summary>
     /// <param name="source"></param>
@@ -38,6 +28,14 @@ internal static class SystemHelper
         return new DateTime(year, month, day);
     }
 
+    /// <summary>
+    /// Searches, into <paramref name="collection"/>, the value from the <paramref name="keySelector"/> with the most occurences.
+    /// </summary>
+    /// <typeparam name="InT"></typeparam>
+    /// <typeparam name="OutT"></typeparam>
+    /// <param name="collection"></param>
+    /// <param name="keySelector"></param>
+    /// <returns>The value with the most occurences, and the items related to this value.</returns>
     public static IGrouping<OutT, InT>? GetMaxOccurence<InT, OutT>(
         this IEnumerable<InT> collection,
         Func<InT, OutT> keySelector)

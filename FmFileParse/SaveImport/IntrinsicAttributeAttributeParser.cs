@@ -8,6 +8,10 @@ internal static class IntrinsicAttributeAttributeParser
 {
     private const int HighConversion = 20;
     private const int LowConversion = 200;
+    private const int MinAttributeValue = 1;
+    private const int MinAttributeForPosition = 15;
+
+    internal const int MaxAttributeValue = 20;
 
     private static readonly (PropertyInfo property, IntrinsicAttributeAttribute attribute)[] _intrinsicAttributes = typeof(Player)
         .GetProperties()
@@ -34,7 +38,7 @@ internal static class IntrinsicAttributeAttributeParser
         short currentAbility,
         byte goalKeeperRate)
     {
-        var isGk = goalKeeperRate >= Settings.MinAttributeForPosition;
+        var isGk = goalKeeperRate >= MinAttributeForPosition;
 
         return intrinsicType switch
         {
@@ -50,13 +54,13 @@ internal static class IntrinsicAttributeAttributeParser
 
         var r = (d * d / 30.0) + (d / 3.0) + 0.5;
 
-        if (r < Settings.MinAttributeValue)
+        if (r < MinAttributeValue)
         {
-            r = Settings.MinAttributeValue;
+            r = MinAttributeValue;
         }
-        else if (r > Settings.MaxAttributeValue)
+        else if (r > MaxAttributeValue)
         {
-            r = Settings.MaxAttributeValue;
+            r = MaxAttributeValue;
         }
 
         return (byte)Math.Truncate(r);

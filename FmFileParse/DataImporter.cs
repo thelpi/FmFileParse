@@ -1,24 +1,73 @@
 ﻿using System.Data;
-using System.Linq;
-using System.Numerics;
 using FmFileParse.Models;
 using FmFileParse.Models.Internal;
 using FmFileParse.SaveImport;
-using Google.Protobuf.WellKnownTypes;
 using MySql.Data.MySqlClient;
 
 namespace FmFileParse;
 
 internal class DataImporter(Action<string> reportProgress)
 {
-    private static readonly string[] SqlColumns = [.. Settings.UnmergedOnlyColumns, .. Settings.CommonSqlColumns];
+    private static readonly string[] SqlColumns = [.. UnmergedOnlyColumns, .. CommonSqlColumns];
 
     private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
+
+    private static readonly string[] StringColumns =
+    [
+        "first_name", "last_name", "common_name", "transfer_status", "squad_status"
+    ];
+
+    private static readonly string[] DateColumns =
+    [
+        "date_of_birth", "contract_expiration"
+    ];
+
+    private static readonly string[] SaveFilesReferencesColumns =
+    [
+        // order is important
+        "data_type", "data_id", "file_id", "save_id"
+    ];
 
     // order is important (foreign keys)
     private static readonly string[] ResetIncrementTables =
     [
         "players", "clubs", "club_competitions", "nations", "confederations"
+    ];
+
+    private static readonly string[] CommonSqlColumns =
+    [
+        // intrinsic
+        "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
+        // nation related
+        "nation_id", "secondary_nation_id", "caps", "international_goals",
+        // potential & reputation
+        "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
+        // club related
+        "club_id", "value", "contract_expiration", "wage", "transfer_status", "squad_status",
+        // release fee
+        "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
+        // positions
+        "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
+        "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
+        // sides
+        "side_left", "side_right", "side_center",
+        // attributes
+        "acceleration", "adaptability", "aggression", "agility", "ambition", "anticipation", "balance", "bravery",
+        "consistency", "corners", "creativity", "crossing", "decisions", "determination", "dirtiness", "dribbling",
+        "finishing", "flair", "handling", "heading", "important_matches", "influence", "injury_proneness", "jumping",
+        "long_shots", "loyalty", "marking", "natural_fitness", "off_the_ball", "one_on_ones", "pace", "passing",
+        "penalties", "positioning", "pressure", "professionalism", "reflexes", "set_pieces", "sportsmanship", "stamina",
+        "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
+    ];
+
+    private static readonly string[] UnmergedOnlyColumns =
+    [
+        "id", "file_id"
+    ];
+
+    private static readonly string[] ForeignKeyColumns =
+    [
+        "club_id", "nation_id", "secondary_nation_id"
     ];
 
     private readonly Func<MySqlConnection> _getConnection =
@@ -158,7 +207,7 @@ internal class DataImporter(Action<string> reportProgress)
             using var connection = _getConnection();
             connection.Open();
             using var command = connection.CreateCommand();
-            command.CommandText = $"INSERT INTO save_files_references ({string.Join(", ", Settings.SaveFilesReferencesColumns)}) " +
+            command.CommandText = $"INSERT INTO save_files_references ({string.Join(", ", SaveFilesReferencesColumns)}) " +
                 $"VALUES {string.Join(", ", sqlRowValues)}";
             command.ExecuteNonQuery();
         }
@@ -287,7 +336,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         SetForeignKeysCheck(false);
 
-        var allColumns = new List<string>(Settings.CommonSqlColumns)
+        var allColumns = new List<string>(CommonSqlColumns)
         {
             "occurences"
         };
@@ -298,7 +347,7 @@ internal class DataImporter(Action<string> reportProgress)
         command.CommandText = allColumns.GetInsertQuery("players");
         foreach (var c in allColumns)
         {
-            command.SetParameter(c, Settings.GetDbType(c));
+            command.SetParameter(c, GetDbType(c));
         }
         command.Prepare();
 
@@ -552,11 +601,11 @@ internal class DataImporter(Action<string> reportProgress)
         foreach (var col in allFilePlayerData[0].Keys)
         {
             Func<IEnumerable<object>, object>? averageFunc = null;
-            if (Settings.DateColumns.Contains(col))
+            if (DateColumns.Contains(col))
             {
                 averageFunc = values => values.Select(Convert.ToDateTime).Average();
             }
-            else if (!Settings.StringColumns.Contains(col) && !Settings.ForeignKeyColumns.Contains(col))
+            else if (!StringColumns.Contains(col) && !ForeignKeyColumns.Contains(col))
             {
                 averageFunc = values => (int)Math.Round(values.Select(Convert.ToInt32).Average());
             }
@@ -641,7 +690,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         foreach (var c in SqlColumns)
         {
-            command.SetParameter(c, Settings.GetDbType(c));
+            command.SetParameter(c, GetDbType(c));
         }
 
         command.Prepare();
@@ -955,5 +1004,14 @@ internal class DataImporter(Action<string> reportProgress)
             && !string.IsNullOrWhiteSpace(localName)
             ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
             : string.Empty;
+    }
+
+    private static DbType GetDbType(string column)
+    {
+        return StringColumns.Contains(column)
+            ? DbType.String
+            : (DateColumns.Contains(column)
+                ? DbType.Date
+                : DbType.Int32);
     }
 }

@@ -1,9 +1,12 @@
-﻿using FmFileParse.Models.Internal;
+﻿using System.Text;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.SaveImport;
 
 internal static class ByteHandler
 {
+    private static readonly Encoding DefaultEncoding = Encoding.Latin1;
+
     public static short GetShortFromBytes(this byte[] bytes, int start)
         => BitConverter.ToInt16(bytes.Skip(start).Take(2).ToArray(), 0);
 
@@ -14,7 +17,7 @@ internal static class ByteHandler
         => (decimal)BitConverter.ToDouble(bytes.Skip(start).Take(8).ToArray(), 0);
 
     public static string GetStringFromBytes(this byte[] bytes, int start, int length = 0)
-        => Settings.DefaultEncoding.GetString(TrimEnd(bytes.Skip(start).Take(length > 0 ? length : bytes.Length).ToArray()));
+        => DefaultEncoding.GetString(TrimEnd(bytes.Skip(start).Take(length > 0 ? length : bytes.Length).ToArray()));
 
     public static DateTime? GetDateFromBytes(this byte[] bytes, int start)
         => ConvertToDate(bytes.Skip(start).Take(5).ToArray());

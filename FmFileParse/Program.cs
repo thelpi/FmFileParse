@@ -1,45 +1,33 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-using FmFileParse;
+﻿using FmFileParse;
 using FmFileParse.Models;
 using FmFileParse.SaveImport;
 
+Console.WriteLine("0 - test the save file reader");
 Console.WriteLine("1 - data importation");
-Console.WriteLine("2 - players merge");
-Console.WriteLine("3 - data importation then players merge");
-Console.WriteLine("4 - test the save file reader");
 Console.WriteLine("Other - exit");
 
 var rawChoice = Console.ReadLine();
 
-if (!int.TryParse(rawChoice, out var choice) || (choice != 1 && choice != 2 && choice != 3 && choice != 4))
+if (!int.TryParse(rawChoice, out var choice) || (choice != 0 && choice != 1))
 {
     Console.WriteLine("No action to do; Press any key to close.");
     Console.ReadKey();
     return;
 }
 
-var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, $"*.{Settings.SaveFileExtension}");
+var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, "*.sav");
 
-if (choice == 4)
+if (choice == 0)
 {
     var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFiles[0]);
 
     DisplayPlayerInformation(data);
 }
-
-if (choice == 1 || choice == 3)
+else
 {
     var importer = new DataImporter(Console.WriteLine);
 
     importer.ProceedToImport(saveFiles);
-}
-
-if (choice == 2 || choice == 3)
-{
-    var merger = new PlayersMerger(saveFiles.Length, Console.WriteLine);
-
-    merger.ProceedToMerge(new DataImporter(Console.WriteLine), saveFiles);
 }
 
 Console.WriteLine("Process is done; Press any key to close.");
