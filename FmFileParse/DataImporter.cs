@@ -10,29 +10,22 @@ internal class DataImporter(Action<string> reportProgress)
 {
     private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
 
-    private static readonly string[] StringColumns =
+    private static readonly string[] PlayerTableStringColumns =
     [
-        "first_name", "last_name", "common_name", "transfer_status", "squad_status"
+        "first_name", "last_name", "common_name"
     ];
 
-    private static readonly string[] DateColumns =
+    private static readonly string[] PlayerTableDateColumns =
     [
         "date_of_birth", "contract_expiration"
     ];
 
-    private static readonly string[] SaveFilesReferencesColumns =
+    private static readonly string[] PlayerTableForeignKeyColumns =
     [
-        // order is important
-        "data_type", "data_id", "file_id", "save_id"
+        "club_id", "nation_id", "secondary_nation_id"
     ];
 
-    // order is important (foreign keys)
-    private static readonly string[] ResetIncrementTables =
-    [
-        "players", "clubs", "club_competitions", "nations", "confederations"
-    ];
-
-    private static readonly string[] PlayerSqlColumns =
+    private static readonly string[] PlayerTableColumns =
     [
         // meta
         "occurences",
@@ -43,8 +36,7 @@ internal class DataImporter(Action<string> reportProgress)
         // potential & reputation
         "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
         // club related
-        "club_id", "value", "contract_expiration", "wage", "transfer_status", "squad_status",
-        // release fee
+        "club_id", "value", "contract_expiration", "wage",
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
         // positions
         "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
@@ -60,9 +52,36 @@ internal class DataImporter(Action<string> reportProgress)
         "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
     ];
 
-    private static readonly string[] ForeignKeyColumns =
+    private static readonly (string name, bool hasAutoIncrement)[] Tables =
     [
-        "club_id", "nation_id", "secondary_nation_id"
+        ("players", true),
+        ("clubs", true),
+        ("club_competitions", true),
+        ("nations", true),
+        ("confederations", true),
+        ("players_merge_statistics", false),
+        ("save_files_references", false)
+    ];
+
+    private static readonly List<(string tSource, string cSource, string tTarget, string cTarget)> SqlKeysInfo =
+    [
+        ("nations", "confederation_id", "confederations", "id"),
+        ("club_competitions", "nation_id", "nations", "id"),
+        ("clubs", "nation_id", "nations", "id"),
+        ("clubs", "division_id", "club_competitions", "id"),
+        ("clubs", "liked_staff_1", "players", "id"),
+        ("clubs", "liked_staff_2", "players", "id"),
+        ("clubs", "liked_staff_3", "players", "id"),
+        ("clubs", "disliked_staff_1", "players", "id"),
+        ("clubs", "disliked_staff_2", "players", "id"),
+        ("clubs", "disliked_staff_3", "players", "id"),
+        ("clubs", "rival_club_1", "clubs", "id"),
+        ("clubs", "rival_club_2", "clubs", "id"),
+        ("clubs", "rival_club_3", "clubs", "id"),
+        ("players", "nation_id", "nations", "id"),
+        ("players", "secondary_nation_id", "nations", "id"),
+        ("players", "club_id", "clubs", "id"),
+        ("players_merge_statistics", "player_id", "players", "id"),
     ];
 
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
@@ -86,11 +105,91 @@ internal class DataImporter(Action<string> reportProgress)
         SetClubsInformation(saveFilePaths, clubs);
         SetSaveFileReferences(clubs, nameof(Club));
 
-        ImportPlayers2(saveFilePaths, nations, clubs);
+        var players = ImportPlayers(saveFilePaths, nations, clubs);
+        SetSaveFileReferences(players, nameof(Player));
+        UpdateStaffOnClubs(players, saveFilePaths);
+
+        CreateIndexesAndForeignKeys();
+    }
+
+    private void ClearAllData()
+    {
+        _reportProgress("Cleaning previous data starts...");
+
+        DropIndexesAndForeignKeys();
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+
+        foreach (var (name, oi) in Tables)
+        {
+            command.CommandText = $"TRUNCATE TABLE {name}";
+            command.ExecuteNonQuery();
+
+            if (oi)
+            {
+                command.CommandText = $"ALTER TABLE {name} AUTO_INCREMENT = 1";
+                command.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private void DropIndexesAndForeignKeys()
+    {
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+
+        foreach (var (tSource, cSource, tTarget, cTarget) in SqlKeysInfo)
+        {
+            command.CommandText = $"ALTER TABLE {tSource} DROP FOREIGN KEY {string.Concat(tSource, "_", cSource, "_", tTarget)}";
+            command.ExecuteNonQuery();
+
+            command.CommandText = $"ALTER TABLE {tSource} DROP INDEX {cSource}";
+            command.ExecuteNonQuery();
+        }
+
+        command.CommandText = "ALTER TABLE players_merge_statistics DROP PRIMARY KEY";
+        command.ExecuteNonQuery();
+
+        command.CommandText = "ALTER TABLE save_files_references DROP PRIMARY KEY";
+        command.ExecuteNonQuery();
+    }
+
+    private void CreateIndexesAndForeignKeys()
+    {
+        _reportProgress("Creates indexes...");
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+
+        command.CommandText = "ALTER TABLE players_merge_statistics " +
+            "ADD PRIMARY KEY(player_id, field)";
+        command.ExecuteNonQuery();
+
+        command.CommandText = "ALTER TABLE save_files_references " +
+            "ADD PRIMARY KEY(data_type, data_id, file_id)";
+        command.ExecuteNonQuery();
+
+        foreach (var (tSource, cSource, tTarget, cTarget) in SqlKeysInfo)
+        {
+            command.CommandText = $"ALTER TABLE {tSource} " +
+                $"ADD INDEX ({cSource})";
+            command.ExecuteNonQuery();
+
+            command.CommandText = $"ALTER TABLE {tSource} " +
+                $"ADD CONSTRAINT {string.Concat(tSource, "_", cSource, "_", tTarget)} FOREIGN KEY ({cSource}) " +
+                $"REFERENCES {tTarget}({cTarget}) ON DELETE RESTRICT ON UPDATE RESTRICT";
+            command.ExecuteNonQuery();
+        }
     }
 
     private void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
     {
+        _reportProgress("Updates club's staff information...");
+
         using var wConnection = _getConnection();
         wConnection.Open();
         using var wCommand = wConnection.CreateCommand();
@@ -178,6 +277,8 @@ internal class DataImporter(Action<string> reportProgress)
 
     private void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
     {
+        _reportProgress("Saves savefiles references map...");
+
         if (data.Count == 0)
         {
             return;
@@ -200,35 +301,8 @@ internal class DataImporter(Action<string> reportProgress)
             using var connection = _getConnection();
             connection.Open();
             using var command = connection.CreateCommand();
-            command.CommandText = $"INSERT INTO save_files_references ({string.Join(", ", SaveFilesReferencesColumns)}) " +
+            command.CommandText = $"INSERT INTO save_files_references (data_type, data_id, file_id, save_id) " +
                 $"VALUES {string.Join(", ", sqlRowValues)}";
-            command.ExecuteNonQuery();
-        }
-    }
-
-    private void ClearAllData()
-    {
-        _reportProgress("Cleaning previous data starts...");
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-
-        command.CommandText = "DELETE FROM unmerged_players";
-        command.ExecuteNonQuery();
-
-        command.CommandText = "TRUNCATE TABLE players_merge_statistics";
-        command.ExecuteNonQuery();
-
-        command.CommandText = "TRUNCATE TABLE save_files_references";
-        command.ExecuteNonQuery();
-
-        foreach (var table in ResetIncrementTables)
-        {
-            command.CommandText = $"DELETE FROM {table}";
-            command.ExecuteNonQuery();
-
-            command.CommandText = $"ALTER TABLE {table} AUTO_INCREMENT = 1";
             command.ExecuteNonQuery();
         }
     }
@@ -320,26 +394,24 @@ internal class DataImporter(Action<string> reportProgress)
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
-    private void ImportPlayers2(
+    private List<SaveIdMapper> ImportPlayers(
         string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
         List<SaveIdMapper> clubsMapping)
     {
         _reportProgress("Players importation starts...");
 
-        SetForeignKeysCheck(false);
-
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = PlayerSqlColumns.GetInsertQuery("players");
-        foreach (var c in PlayerSqlColumns)
+        command.CommandText = PlayerTableColumns.GetInsertQuery("players");
+        foreach (var c in PlayerTableColumns)
         {
             command.SetParameter(c, GetDbType(c));
         }
         command.Prepare();
 
-        var collectedMergeInfo = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
+        var collectedMergeStats = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
         var collectedDbIdMap = new List<SaveIdMapper>(10000);
 
         var nameKeys = new List<(string nameKey, int fileId, DateTime dob, int clubId, Player p)>(saveFilePaths.Length * 10000);
@@ -364,7 +436,7 @@ internal class DataImporter(Action<string> reportProgress)
             if (countStandard == countDistinct)
             {
                 var players = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.p, x.fileId));
-                var mapId = InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                var mapId = InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
                 if (mapId.HasValue)
                 {
                     collectedDbIdMap.Add(mapId.Value);
@@ -380,7 +452,7 @@ internal class DataImporter(Action<string> reportProgress)
                     if (countStandard == countDistinct)
                     {
                         var players = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.p, x.fileId));
-                        InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                        InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
                     }
                     else
                     {
@@ -392,7 +464,7 @@ internal class DataImporter(Action<string> reportProgress)
                             if (countStandard == countDistinct)
                             {
                                 var players = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => (x.p, x.fileId));
-                                InsertMergedPlayer(players, command, collectedMergeInfo, saveFilePaths, nationsMapping, clubsMapping);
+                                InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
                             }
                             else
                             {
@@ -403,26 +475,18 @@ internal class DataImporter(Action<string> reportProgress)
                 }
             }
 
-            if (collectedMergeInfo.Count >= 500)
+            if (Settings.InsertStatistics && collectedMergeStats.Count >= 500)
             {
-                BulkInsertPlayerMergeStatistics(collectedMergeInfo);
+                BulkInsertPlayerMergeStatistics(collectedMergeStats);
             }
         }
 
-        if (collectedMergeInfo.Count > 0)
+        if (Settings.InsertStatistics && collectedMergeStats.Count > 0)
         {
-            BulkInsertPlayerMergeStatistics(collectedMergeInfo);
+            BulkInsertPlayerMergeStatistics(collectedMergeStats);
         }
 
-        SetForeignKeysCheck(true);
-
-        _reportProgress("Saves savefiles references map...");
-
-        SetSaveFileReferences(collectedDbIdMap, nameof(Player));
-
-        _reportProgress("Updates club's staff information...");
-
-        UpdateStaffOnClubs(collectedDbIdMap, saveFilePaths);
+        return collectedDbIdMap;
     }
 
     private void BulkInsertPlayerMergeStatistics(
@@ -450,19 +514,10 @@ internal class DataImporter(Action<string> reportProgress)
         });
     }
 
-    private void SetForeignKeysCheck(bool enable)
-    {
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = $"SET FOREIGN_KEY_CHECKS = {(enable ? 1 : 0)}";
-        command.ExecuteNonQuery();
-    }
-
     private SaveIdMapper? InsertMergedPlayer(
         IEnumerable<(Player, int)> players,
         MySqlCommand insertPlayerCommand,
-        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo,
+        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeStats,
         string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
         List<SaveIdMapper> clubsMapping)
@@ -528,8 +583,6 @@ internal class DataImporter(Action<string> reportProgress)
                 { "side_left", player.LeftSide },
                 { "side_right", player.RightSide },
                 { "side_center", player.CentreSide },
-                { "squad_status", DBNull.Value },
-                { "transfer_status", DBNull.Value },
                 { "anticipation", player.Anticipation },
                 { "acceleration", player.Acceleration },
                 { "adaptability", player.Adaptability },
@@ -589,16 +642,16 @@ internal class DataImporter(Action<string> reportProgress)
         foreach (var col in allFilePlayerData[0].Keys)
         {
             Func<IEnumerable<object>, object>? averageFunc = null;
-            if (DateColumns.Contains(col))
+            if (PlayerTableDateColumns.Contains(col))
             {
                 averageFunc = values => values.Select(Convert.ToDateTime).Average();
             }
-            else if (!StringColumns.Contains(col) && !ForeignKeyColumns.Contains(col))
+            else if (!PlayerTableStringColumns.Contains(col) && !PlayerTableForeignKeyColumns.Contains(col))
             {
                 averageFunc = values => (int)Math.Round(values.Select(Convert.ToInt32).Average());
             }
 
-            var (computedValue, mergeType, countValues) = CrawlColumnValuesForMerge(
+            var (computedValue, mergeType, countValues) = CrawlValuesForMerge(
                 allFilePlayerData,
                 allFilePlayerData.Select(_ => _[col]),
                 averageFunc);
@@ -617,7 +670,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         var dbPlayerId = (int)insertPlayerCommand.LastInsertedId;
 
-        collectedMergeInfo.Add(dbPlayerId, colsStats);
+        collectedMergeStats.Add(dbPlayerId, colsStats);
 
         _reportProgress($"The player has been merged.");
 
@@ -628,7 +681,7 @@ internal class DataImporter(Action<string> reportProgress)
         };
     }
 
-    private static (object computedValue, MergeType mergeType, int countValues) CrawlColumnValuesForMerge(
+    private static (object computedValue, MergeType mergeType, int countValues) CrawlValuesForMerge(
         List<Dictionary<string, object>> allFilePlayerData,
         IEnumerable<object> allValues,
         Func<IEnumerable<object>, object>? averageFunc)
@@ -845,9 +898,9 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static DbType GetDbType(string column)
     {
-        return StringColumns.Contains(column)
+        return PlayerTableStringColumns.Contains(column)
             ? DbType.String
-            : (DateColumns.Contains(column)
+            : (PlayerTableDateColumns.Contains(column)
                 ? DbType.Date
                 : DbType.Int32);
     }
