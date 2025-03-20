@@ -8,8 +8,6 @@ namespace FmFileParse;
 
 internal class DataImporter(Action<string> reportProgress)
 {
-    private static readonly string[] SqlColumns = [.. UnmergedOnlyColumns, .. CommonSqlColumns];
-
     private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
 
     private static readonly string[] StringColumns =
@@ -34,8 +32,10 @@ internal class DataImporter(Action<string> reportProgress)
         "players", "clubs", "club_competitions", "nations", "confederations"
     ];
 
-    private static readonly string[] CommonSqlColumns =
+    private static readonly string[] PlayerSqlColumns =
     [
+        // meta
+        "occurences",
         // intrinsic
         "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
         // nation related
@@ -60,19 +60,12 @@ internal class DataImporter(Action<string> reportProgress)
         "strength", "tackling", "teamwork", "technique", "temperament", "throw_ins", "versatility", "work_rate"
     ];
 
-    private static readonly string[] UnmergedOnlyColumns =
-    [
-        "id", "file_id"
-    ];
-
     private static readonly string[] ForeignKeyColumns =
     [
         "club_id", "nation_id", "secondary_nation_id"
     ];
 
-    private readonly Func<MySqlConnection> _getConnection =
-        () => new MySqlConnection(Settings.ConnString);
-
+    private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
     private readonly Dictionary<string, SaveGameData> _loadedSaveData = [];
     private readonly Action<string> _reportProgress = reportProgress;
 
@@ -96,7 +89,7 @@ internal class DataImporter(Action<string> reportProgress)
         ImportPlayers2(saveFilePaths, nations, clubs);
     }
 
-    internal void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
+    private void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
     {
         using var wConnection = _getConnection();
         wConnection.Open();
@@ -183,7 +176,7 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    internal void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
+    private void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
     {
         if (data.Count == 0)
         {
@@ -336,16 +329,11 @@ internal class DataImporter(Action<string> reportProgress)
 
         SetForeignKeysCheck(false);
 
-        var allColumns = new List<string>(CommonSqlColumns)
-        {
-            "occurences"
-        };
-
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = allColumns.GetInsertQuery("players");
-        foreach (var c in allColumns)
+        command.CommandText = PlayerSqlColumns.GetInsertQuery("players");
+        foreach (var c in PlayerSqlColumns)
         {
             command.SetParameter(c, GetDbType(c));
         }
@@ -596,8 +584,8 @@ internal class DataImporter(Action<string> reportProgress)
             collectedSaveIds.Add(fileId, player.Id);
         }
 
-        var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>(SqlColumns.Length);
-        var colsAndVals = new Dictionary<string, object>(SqlColumns.Length);
+        var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>();
+        var colsAndVals = new Dictionary<string, object>();
         foreach (var col in allFilePlayerData[0].Keys)
         {
             Func<IEnumerable<object>, object>? averageFunc = null;
@@ -674,157 +662,6 @@ internal class DataImporter(Action<string> reportProgress)
         }
 
         return (value, mergeType, groupedValues.Count);
-    }
-
-    private void ImportPlayers(
-        string[] saveFilePaths,
-        List<SaveIdMapper> nationsMapping,
-        List<SaveIdMapper> clubsMapping)
-    {
-        _reportProgress("Players importation starts...");
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = SqlColumns.GetInsertQuery("unmerged_players");
-
-        foreach (var c in SqlColumns)
-        {
-            command.SetParameter(c, GetDbType(c));
-        }
-
-        command.Prepare();
-
-        var iFile = 0;
-        foreach (var saveFilePath in saveFilePaths)
-        {
-            var fileName = Path.GetFileName(saveFilePath);
-
-            var data = GetSaveGameDataFromCache(saveFilePath);
-
-            foreach (var player in data.Players)
-            {
-                var firstName = GetCleanDbName(player.FirstNameId, data.FirstNames);
-                var lastName = GetCleanDbName(player.LastNameId, data.LastNames);
-                var commmonName = GetCleanDbName(player.CommonNameId, data.CommonNames);
-
-                string[] keyParts =
-                [
-                    (commmonName == DBNull.Value ? $"{lastName}, {firstName}" : $"{commmonName}").Trim(),
-                    player.WorldReputation.ToString(),
-                    player.CurrentReputation.ToString(),
-                    player.HomeReputation.ToString(),
-                    player.CurrentAbility.ToString(),
-                    player.PotentialAbility.ToString()
-                ];
-
-                command.Parameters["@id"].Value = player.Id;
-                command.Parameters["@file_id"].Value = iFile;
-                command.Parameters["@first_name"].Value = firstName;
-                command.Parameters["@last_name"].Value = lastName;
-                command.Parameters["@common_name"].Value = commmonName;
-                command.Parameters["@date_of_birth"].Value = player.DateOfBirth;
-                command.Parameters["@nation_id"].Value = GetMapDbIdObject(nationsMapping, iFile, player.NationId);
-                command.Parameters["@secondary_nation_id"].Value = GetMapDbIdObject(nationsMapping, iFile, player.SecondaryNationId);
-                command.Parameters["@caps"].Value = player.InternationalCaps;
-                command.Parameters["@international_goals"].Value = player.InternationalGoals;
-                command.Parameters["@right_foot"].Value = player.RightFoot;
-                command.Parameters["@left_foot"].Value = player.LeftFoot;
-                command.Parameters["@ability"].Value = player.CurrentAbility;
-                command.Parameters["@potential_ability"].Value = player.PotentialAbility;
-                command.Parameters["@home_reputation"].Value = player.HomeReputation;
-                command.Parameters["@current_reputation"].Value = player.CurrentReputation;
-                command.Parameters["@world_reputation"].Value = player.WorldReputation;
-                command.Parameters["@club_id"].Value = GetMapDbIdObject(clubsMapping, iFile, player.ClubId);
-                command.Parameters["@value"].Value = player.Value;
-                command.Parameters["@contract_expiration"].Value = player.Contract?.ContractEndDate ?? (object)DBNull.Value;
-                command.Parameters["@wage"].Value = player.Wage;
-                command.Parameters["@manager_job_rel"].Value = player.Contract?.ManagerReleaseClause == true
-                    ? player.Contract.ReleaseClauseValue
-                    : 0;
-                command.Parameters["@min_fee_rel"].Value = player.Contract?.MinimumFeeReleaseClause == true
-                    ? player.Contract.ReleaseClauseValue
-                    : 0;
-                command.Parameters["@non_play_rel"].Value = player.Contract?.NonPlayingReleaseClause == true
-                    ? player.Contract.ReleaseClauseValue
-                    : 0;
-                command.Parameters["@non_promotion_rel"].Value = player.Contract?.NonPromotionReleaseClause == true
-                    ? player.Contract.ReleaseClauseValue
-                    : 0;
-                command.Parameters["@relegation_rel"].Value = player.Contract?.RelegationReleaseClause == true
-                    ? player.Contract.ReleaseClauseValue
-                    : 0;
-                command.Parameters["@pos_goalkeeper"].Value = player.GoalKeeperPos;
-                command.Parameters["@pos_sweeper"].Value = player.SweeperPos;
-                command.Parameters["@pos_defender"].Value = player.DefenderPos;
-                command.Parameters["@pos_defensive_midfielder"].Value = player.DefensiveMidfielderPos;
-                command.Parameters["@pos_midfielder"].Value = player.MidfielderPos;
-                command.Parameters["@pos_attacking_midfielder"].Value = player.AttackingMidfielderPos;
-                command.Parameters["@pos_forward"].Value = player.StrikerPos;
-                command.Parameters["@pos_wingback"].Value = player.WingBackPos;
-                command.Parameters["@pos_free_role"].Value = player.FreeRolePos;
-                command.Parameters["@side_left"].Value = player.LeftSide;
-                command.Parameters["@side_right"].Value = player.RightSide;
-                command.Parameters["@side_center"].Value = player.CentreSide;
-                // TODO
-                command.Parameters["@squad_status"].Value = DBNull.Value;
-                command.Parameters["@transfer_status"].Value = DBNull.Value;
-
-                command.Parameters["@anticipation"].Value = player.Anticipation;
-                command.Parameters["@acceleration"].Value = player.Acceleration;
-                command.Parameters["@adaptability"].Value = player.Adaptability;
-                command.Parameters["@aggression"].Value = player.Aggression;
-                command.Parameters["@agility"].Value = player.Agility;
-                command.Parameters["@ambition"].Value = player.Ambition;
-                command.Parameters["@balance"].Value = player.Balance;
-                command.Parameters["@bravery"].Value = player.Bravery;
-                command.Parameters["@consistency"].Value = player.Consistency;
-                command.Parameters["@corners"].Value = player.Corners;
-                command.Parameters["@creativity"].Value = player.Creativity;
-                command.Parameters["@crossing"].Value = player.Crossing;
-                command.Parameters["@decisions"].Value = player.Decisions;
-                command.Parameters["@determination"].Value = player.Determination;
-                command.Parameters["@dirtiness"].Value = player.Dirtiness;
-                command.Parameters["@dribbling"].Value = player.Dribbling;
-                command.Parameters["@finishing"].Value = player.Finishing;
-                command.Parameters["@flair"].Value = player.Flair;
-                command.Parameters["@handling"].Value = player.Handling;
-                command.Parameters["@heading"].Value = player.Heading;
-                command.Parameters["@important_matches"].Value = player.ImportantMatches;
-                command.Parameters["@influence"].Value = player.Influence;
-                command.Parameters["@injury_proneness"].Value = player.InjuryProneness;
-                command.Parameters["@jumping"].Value = player.Jumping;
-                command.Parameters["@long_shots"].Value = player.LongShots;
-                command.Parameters["@loyalty"].Value = player.Loyalty;
-                command.Parameters["@marking"].Value = player.Marking;
-                command.Parameters["@natural_fitness"].Value = player.NaturalFitness;
-                command.Parameters["@off_the_ball"].Value = player.OffTheBall;
-                command.Parameters["@one_on_ones"].Value = player.OneOnOnes;
-                command.Parameters["@pace"].Value = player.Pace;
-                command.Parameters["@passing"].Value = player.Passing;
-                command.Parameters["@penalties"].Value = player.Penalties;
-                command.Parameters["@positioning"].Value = player.Positioning;
-                command.Parameters["@pressure"].Value = player.Pressure;
-                command.Parameters["@professionalism"].Value = player.Professionalism;
-                command.Parameters["@reflexes"].Value = player.Reflexes;
-                command.Parameters["@set_pieces"].Value = player.FreeKicks;
-                command.Parameters["@sportsmanship"].Value = player.Sportsmanship;
-                command.Parameters["@stamina"].Value = player.Stamina;
-                command.Parameters["@strength"].Value = player.Strength;
-                command.Parameters["@tackling"].Value = player.Tackling;
-                command.Parameters["@teamwork"].Value = player.Teamwork;
-                command.Parameters["@technique"].Value = player.Technique;
-                command.Parameters["@temperament"].Value = player.Temperament;
-                command.Parameters["@throw_ins"].Value = player.ThrowIns;
-                command.Parameters["@versatility"].Value = player.Versatility;
-                command.Parameters["@work_rate"].Value = player.WorkRate;
-
-                command.ExecuteNonQuery();
-
-                _reportProgress($"Player '{keyParts[0]}' has been created for file {fileName}.");
-            }
-            iFile++;
-        }
     }
 
     private void SetClubsInformation(string[] saveFilePaths, List<SaveIdMapper> clubsMapping)
