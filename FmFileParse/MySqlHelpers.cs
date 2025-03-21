@@ -35,4 +35,20 @@ internal static class MySqlHelpers
         return $"INSERT INTO {table} ({string.Join(", ", columns)}) " +
             $"VALUES ({string.Join(", ", columns.Select(x => $"@{x}"))})";
     }
+
+    /// <summary>
+    /// Executes <see cref="MySqlCommand.ExecuteNonQuery"/> without throwing exception for error number <c>1091</c>.
+    /// </summary>
+    /// <param name="command"></param>
+    internal static void ExecuteNonQuerySecured(this MySqlCommand command)
+    {
+        try
+        {
+            command.ExecuteNonQuery();
+        }
+        catch (MySqlException ex) when (ex.Number == 1091)
+        {
+            System.Diagnostics.Debug.WriteLine(ex.Message);
+        }
+    }
 }

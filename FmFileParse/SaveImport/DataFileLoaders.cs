@@ -117,7 +117,7 @@ internal static class DataFileLoaders
 
     private static Dictionary<int, Club> ManageDuplicateClubs(this Dictionary<int, Club> clubs)
     {
-        var clubsGroups = clubs.Values.GetMaxOccurence(c => $"{c.LongName};{c.NationId};{c.DivisionId};")!;
+        var clubsGroups = clubs.Values.GetMaxOccurence(c => $"{c.LongName};{c.NationId};{c.DivisionId};");
 
         if (clubsGroups.Count() > 1)
         {

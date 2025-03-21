@@ -33,13 +33,13 @@ internal static class SystemHelper
     /// </summary>
     /// <typeparam name="InT"></typeparam>
     /// <typeparam name="OutT"></typeparam>
-    /// <param name="collection"></param>
+    /// <param name="collection">A not empty collection.</param>
     /// <param name="keySelector"></param>
     /// <returns>The value with the most occurences, and the items related to this value.</returns>
-    public static IGrouping<OutT, InT>? GetMaxOccurence<InT, OutT>(
+    public static IGrouping<OutT, InT> GetMaxOccurence<InT, OutT>(
         this IEnumerable<InT> collection,
         Func<InT, OutT> keySelector)
-        => collection.GroupBy(keySelector).OrderByDescending(x => x.Count()).FirstOrDefault();
+        => collection.GroupBy(keySelector).OrderByDescending(x => x.Count()).First();
 
     /// <summary>
     /// Parses a nullable object into <see cref="DBNull.Value"/>.

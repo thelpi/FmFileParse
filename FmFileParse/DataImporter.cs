@@ -144,17 +144,17 @@ internal class DataImporter(Action<string> reportProgress)
         foreach (var (tSource, cSource, tTarget, cTarget) in SqlKeysInfo)
         {
             command.CommandText = $"ALTER TABLE {tSource} DROP FOREIGN KEY {string.Concat(tSource, "_", cSource, "_", tTarget)}";
-            command.ExecuteNonQuery();
+            command.ExecuteNonQuerySecured();
 
             command.CommandText = $"ALTER TABLE {tSource} DROP INDEX {cSource}";
-            command.ExecuteNonQuery();
+            command.ExecuteNonQuerySecured();
         }
 
         command.CommandText = "ALTER TABLE players_merge_statistics DROP PRIMARY KEY";
-        command.ExecuteNonQuery();
+        command.ExecuteNonQuerySecured();
 
         command.CommandText = "ALTER TABLE save_files_references DROP PRIMARY KEY";
-        command.ExecuteNonQuery();
+        command.ExecuteNonQuerySecured();
     }
 
     private void CreateIndexesAndForeignKeys()
@@ -324,7 +324,7 @@ internal class DataImporter(Action<string> reportProgress)
 
             if (!keysByPlayer.TryGetValue(playerDbId, out var keys))
             {
-                keys = new List<int[]>(12);
+                keys = new List<int[]>(saveFilePaths.Length);
                 keysByPlayer.Add(playerDbId, keys);
             }
 
@@ -332,29 +332,29 @@ internal class DataImporter(Action<string> reportProgress)
 
             keys.Add(
             [
-                GetMapDbId(playersMapping, fileId, club.LikedStaff1),
-                GetMapDbId(playersMapping, fileId, club.LikedStaff2),
-                GetMapDbId(playersMapping, fileId, club.LikedStaff3),
-                GetMapDbId(playersMapping, fileId, club.DislikedStaff1),
-                GetMapDbId(playersMapping, fileId, club.DislikedStaff2),
-                GetMapDbId(playersMapping, fileId, club.DislikedStaff3),
+                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff1),
+                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff2),
+                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff3),
+                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff1),
+                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff2),
+                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff3),
             ]);
         }
 
         foreach (var pid in keysByPlayer.Keys)
         {
-            var maxxedOccurences = new int?[keysByPlayer.Count];
-            for (var i = 0; i < keysByPlayer.Count; i++)
-                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i])?.Key;
+            var maxxedOccurences = new int[6];
+            for (var i = 0; i < 6; i++)
+                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i]).Key;
 
-            if (maxxedOccurences.Any(v => v.HasValue))
+            if (maxxedOccurences.Any(v => v != -1))
             {
-                wCommand.Parameters["@liked_staff_1"].Value = maxxedOccurences[0].DbNullIf();
-                wCommand.Parameters["@liked_staff_2"].Value = maxxedOccurences[1].DbNullIf();
-                wCommand.Parameters["@liked_staff_3"].Value = maxxedOccurences[2].DbNullIf();
-                wCommand.Parameters["@disliked_staff_1"].Value = maxxedOccurences[3].DbNullIf();
-                wCommand.Parameters["@disliked_staff_2"].Value = maxxedOccurences[4].DbNullIf();
-                wCommand.Parameters["@disliked_staff_3"].Value = maxxedOccurences[5].DbNullIf();
+                wCommand.Parameters["@liked_staff_1"].Value = maxxedOccurences[0].DbNullIf(-1);
+                wCommand.Parameters["@liked_staff_2"].Value = maxxedOccurences[1].DbNullIf(-1);
+                wCommand.Parameters["@liked_staff_3"].Value = maxxedOccurences[2].DbNullIf(-1);
+                wCommand.Parameters["@disliked_staff_1"].Value = maxxedOccurences[3].DbNullIf(-1);
+                wCommand.Parameters["@disliked_staff_2"].Value = maxxedOccurences[4].DbNullIf(-1);
+                wCommand.Parameters["@disliked_staff_3"].Value = maxxedOccurences[5].DbNullIf(-1);
                 wCommand.Parameters["@id"].Value = pid;
                 wCommand.ExecuteNonQuery();
             }
@@ -383,32 +383,27 @@ internal class DataImporter(Action<string> reportProgress)
 
         void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
         {
-            if (saveId >= 0)
+            var dbId = GetMapDbIdIfAny(clubsMapping, fileIndex, saveId);
+            if (dbId >= 0)
             {
-                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentId) && currentId == saveId);
-                if (!match.Equals(default(SaveIdMapper)))
-                {
-                    dbIdList.Add(match.DbId);
-                }
+                dbIdList.Add(dbId);
             }
         }
 
-        object MacOrAvgOrNull(List<int> source, int count, bool isId)
+        object MaxOrAvgOrNull(List<int> source, int count, bool isId)
         {
-            var group = source.GetMaxOccurence(x => x);
-            if (group is not null)
+            if (source.Count == 0)
             {
-                if (group.Count() >= Settings.MinValueOccurenceRate * count
-                    || (isId && source.Count == count))
-                {
-                    return group.Key;
-                }
-                else if (!isId)
-                {
-                    return (int)Math.Round(source.Average());
-                }
+                return DBNull.Value;
             }
-            return DBNull.Value;
+
+            var group = source.GetMaxOccurence(x => x);
+            return group.Count() >= Settings.MinValueOccurenceRate * count
+                || (isId && source.Count == count)
+                ? group.Key
+                : !isId
+                    ? (int)Math.Round(source.Average())
+                    : DBNull.Value;
         }
 
         var clubCount = 0;
@@ -438,12 +433,12 @@ internal class DataImporter(Action<string> reportProgress)
             }
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(rivalClub1List, keysCount, true);
-            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(rivalClub2List, keysCount, true);
-            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(rivalClub3List, keysCount, true);
-            command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
-            command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
-            command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
+            command.Parameters["@rival_club_1"].Value = MaxOrAvgOrNull(rivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = MaxOrAvgOrNull(rivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = MaxOrAvgOrNull(rivalClub3List, keysCount, true);
+            command.Parameters["@bank"].Value = MaxOrAvgOrNull(bankList, keysCount, false);
+            command.Parameters["@facilities"].Value = MaxOrAvgOrNull(facilitiesList, keysCount, false);
+            command.Parameters["@reputation"].Value = MaxOrAvgOrNull(reputationList, keysCount, false);
             command.ExecuteNonQuery();
 
             clubCount++;
@@ -451,7 +446,6 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    // dirty
     private List<SaveIdMapper> ImportPlayers(
         string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
@@ -470,9 +464,10 @@ internal class DataImporter(Action<string> reportProgress)
         command.Prepare();
 
         var collectedMergeStats = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
-        var collectedDbIdMap = new List<SaveIdMapper>(10000);
+        var collectedDbIdMap = new List<SaveIdMapper>(12000);
 
-        var nameKeys = new List<(string nameKey, int fileId, DateTime dob, int clubId, Player p)>(saveFilePaths.Length * 10000);
+        var names = new HashSet<string>(12000);
+        var allPlayers = new Dictionary<string, Dictionary<int, List<(Player player, int fileId)>>>(12000 * saveFilePaths.Length);
         for (var fileId = 0; fileId < saveFilePaths.Length; fileId++)
         {
             var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
@@ -482,54 +477,69 @@ internal class DataImporter(Action<string> reportProgress)
                 var firstName = GetNameValue(p.FirstNameId, data.FirstNames);
                 var lastName = GetNameValue(p.LastNameId, data.LastNames);
                 var commmonName = GetNameValue(p.CommonNameId, data.CommonNames);
-                var clubId = GetMapDbId(clubsMapping, fileId, p.ClubId);
-                nameKeys.Add(($"{firstName};{lastName};{commmonName}".ToLowerInvariant(), fileId, p.DateOfBirth, clubId, p));
+
+                var playerKey = $"{firstName};{lastName};{commmonName}";
+                names.Add(playerKey);
+
+                if (!allPlayers.TryGetValue(playerKey, out var filesPlayers))
+                {
+                    filesPlayers = [];
+                    allPlayers.Add(playerKey, filesPlayers);
+                }
+
+                if (!filesPlayers.TryGetValue(fileId, out var filePlayers))
+                {
+                    filePlayers = [];
+                    filesPlayers.Add(fileId, filePlayers);
+                }
+
+                filePlayers.Add((p, fileId));
             }
         }
 
-        foreach (var nameKey in nameKeys.Select(x => x.nameKey).Distinct())
+        foreach (var playerKey in names)
         {
-            var countDistinct = nameKeys.Where(x => x.nameKey == nameKey).Select(x => x.fileId).Distinct().Count();
-            var countStandard = nameKeys.Where(x => x.nameKey == nameKey).Select(x => x.fileId).Count();
-            if (countStandard == countDistinct)
+            var playersByName = allPlayers[playerKey].SelectMany(x => x.Value).ToList();
+            if (allPlayers[playerKey].Any(x => x.Value.Count > 1))
             {
-                var players = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.p, x.fileId)).ToList();
-                var mapId = InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
-                if (mapId.HasValue)
+                foreach (var dob in playersByName.Select(x => x.player.DateOfBirth).Distinct())
                 {
-                    collectedDbIdMap.Add(mapId.Value);
+                    var playersByDob = playersByName.Where(x => x.player.DateOfBirth == dob).ToList();
+                    if (playersByDob.GroupBy(x => x.fileId).Any(x => x.Count() > 1))
+                    {
+                        foreach (var club in playersByDob.Select(x => GetMapDbId(clubsMapping, x.fileId, x.player.ClubId)).Distinct())
+                        {
+                            var playersByClub = playersByDob.Where(x => GetMapDbId(clubsMapping, x.fileId, x.player.ClubId) == club).ToList();
+                            if (playersByClub.GroupBy(x => x.fileId).Any(x => x.Count() > 1))
+                            {
+                                throw new NotSupportedException("Criteria on name, date of birth and club are not enough to distinguish players.");
+                            }
+                            else
+                            {
+                                var pMap = InsertMergedPlayer(playersByClub, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
+                                if (pMap.HasValue)
+                                {
+                                    collectedDbIdMap.Add(pMap.Value);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var pMap = InsertMergedPlayer(playersByDob, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
+                        if (pMap.HasValue)
+                        {
+                            collectedDbIdMap.Add(pMap.Value);
+                        }
+                    }
                 }
             }
             else
             {
-                var withDob = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.nameKey, x.dob)).Distinct().ToList();
-                foreach (var dob in withDob)
+                var pMap = InsertMergedPlayer(playersByName, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
+                if (pMap.HasValue)
                 {
-                    countDistinct = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => x.fileId).Distinct().Count();
-                    countStandard = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => x.fileId).Count();
-                    if (countStandard == countDistinct)
-                    {
-                        var players = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.p, x.fileId)).ToList();
-                        InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
-                    }
-                    else
-                    {
-                        var withDobClub = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.nameKey, x.dob, x.clubId)).Distinct().ToList();
-                        foreach (var dobClub in withDobClub)
-                        {
-                            countDistinct = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => x.fileId).Distinct().Count();
-                            countStandard = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => x.fileId).Count();
-                            if (countStandard == countDistinct)
-                            {
-                                var players = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => (x.p, x.fileId)).ToList();
-                                InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
-                            }
-                            else
-                            {
-                                throw new NotImplementedException();
-                            }
-                        }
-                    }
+                    collectedDbIdMap.Add(pMap.Value);
                 }
             }
 
@@ -842,6 +852,17 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
         => saveId < 0 ? -1 : mapping.First(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId).DbId;
+
+    private static int GetMapDbIdIfAny(List<SaveIdMapper> mapping, int fileIndex, int saveId)
+    {
+        if (saveId < 0)
+        {
+            return -1;
+        }
+
+        var match = mapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId);
+        return match.Equals(default(SaveIdMapper)) ? -1 : match.DbId;
+    }
 
     private static string GetNameValue(int nameId, Dictionary<int, string> names)
     {
