@@ -102,7 +102,7 @@ internal class DataImporter(Action<string> reportProgress)
         SetSaveFileReferences(clubCompetitions, nameof(ClubCompetition));
 
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
-        SetClubsInformation(saveFilePaths, clubs);
+        SetClubsInformation(clubs, saveFilePaths);
         SetSaveFileReferences(clubs, nameof(Club));
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
@@ -288,7 +288,7 @@ internal class DataImporter(Action<string> reportProgress)
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
-    private void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
+    private void UpdateStaffOnClubs(List<SaveIdMapper> playersMapping, string[] saveFilePaths)
     {
         _reportProgress("Updates club's staff information...");
 
@@ -308,7 +308,7 @@ internal class DataImporter(Action<string> reportProgress)
         wCommand.SetParameter("id", DbType.Int32);
         wCommand.Prepare();
 
-        var keysByPlayer = new Dictionary<int, List<int[]>>(players.Count);
+        var keysByPlayer = new Dictionary<int, List<int[]>>(playersMapping.Count);
 
         using var connection = _getConnection();
         connection.Open();
@@ -332,12 +332,12 @@ internal class DataImporter(Action<string> reportProgress)
 
             keys.Add(
             [
-                GetMapDbId(players, fileId, club.LikedStaff1),
-                GetMapDbId(players, fileId, club.LikedStaff2),
-                GetMapDbId(players, fileId, club.LikedStaff3),
-                GetMapDbId(players, fileId, club.DislikedStaff1),
-                GetMapDbId(players, fileId, club.DislikedStaff2),
-                GetMapDbId(players, fileId, club.DislikedStaff3),
+                GetMapDbId(playersMapping, fileId, club.LikedStaff1),
+                GetMapDbId(playersMapping, fileId, club.LikedStaff2),
+                GetMapDbId(playersMapping, fileId, club.LikedStaff3),
+                GetMapDbId(playersMapping, fileId, club.DislikedStaff1),
+                GetMapDbId(playersMapping, fileId, club.DislikedStaff2),
+                GetMapDbId(playersMapping, fileId, club.DislikedStaff3),
             ]);
         }
 
@@ -361,10 +361,9 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    // dirty
-    private void SetClubsInformation(string[] saveFilePaths, List<SaveIdMapper> clubsMapping)
+    private void SetClubsInformation(List<SaveIdMapper> clubsMapping, string[] saveFilePaths)
     {
-        _reportProgress("Computes clubs information...");
+        _reportProgress("Computes clubs aggregated information...");
 
         using var connection = _getConnection();
         connection.Open();
@@ -412,13 +411,14 @@ internal class DataImporter(Action<string> reportProgress)
             return DBNull.Value;
         }
 
+        var clubCount = 0;
         foreach (var clubIdMap in clubsMapping)
         {
             var keysCount = clubIdMap.SaveId.Keys.Count;
 
-            var RivalClub1List = new List<int>(keysCount);
-            var RivalClub2List = new List<int>(keysCount);
-            var RivalClub3List = new List<int>(keysCount);
+            var rivalClub1List = new List<int>(keysCount);
+            var rivalClub2List = new List<int>(keysCount);
+            var rivalClub3List = new List<int>(keysCount);
             var reputationList = new List<int>(keysCount);
             var facilitiesList = new List<int>(keysCount);
             var bankList = new List<int>(keysCount);
@@ -432,21 +432,22 @@ internal class DataImporter(Action<string> reportProgress)
                 facilitiesList.Add(club.Facilities);
                 bankList.Add(club.Bank);
 
-                AddIfMatch(RivalClub1List, club.RivalClub1, fileId);
-                AddIfMatch(RivalClub2List, club.RivalClub2, fileId);
-                AddIfMatch(RivalClub3List, club.RivalClub3, fileId);
+                AddIfMatch(rivalClub1List, club.RivalClub1, fileId);
+                AddIfMatch(rivalClub2List, club.RivalClub2, fileId);
+                AddIfMatch(rivalClub3List, club.RivalClub3, fileId);
             }
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(RivalClub1List, keysCount, true);
-            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(RivalClub2List, keysCount, true);
-            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(RivalClub3List, keysCount, true);
+            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(rivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(rivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(rivalClub3List, keysCount, true);
             command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
             command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
             command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
             command.ExecuteNonQuery();
 
-            _reportProgress($"Information updated for clubId: {clubIdMap.DbId}.");
+            clubCount++;
+            _reportProgress($"Information updated for club {clubCount} of {clubsMapping.Count}.");
         }
     }
 
@@ -751,7 +752,6 @@ internal class DataImporter(Action<string> reportProgress)
         return (value, mergeType, groupedValues.Count);
     }
 
-    // dirty
     private void BulkInsertPlayerMergeStatistics(
         Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
     {
