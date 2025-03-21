@@ -493,8 +493,8 @@ internal class DataImporter(Action<string> reportProgress)
             var countStandard = nameKeys.Where(x => x.nameKey == nameKey).Select(x => x.fileId).Count();
             if (countStandard == countDistinct)
             {
-                var players = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.p, x.fileId));
-                var mapId = InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
+                var players = nameKeys.Where(x => x.nameKey == nameKey).Select(x => (x.p, x.fileId)).ToList();
+                var mapId = InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
                 if (mapId.HasValue)
                 {
                     collectedDbIdMap.Add(mapId.Value);
@@ -509,8 +509,8 @@ internal class DataImporter(Action<string> reportProgress)
                     countStandard = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => x.fileId).Count();
                     if (countStandard == countDistinct)
                     {
-                        var players = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.p, x.fileId));
-                        InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
+                        var players = nameKeys.Where(x => (x.nameKey, x.dob) == dob).Select(x => (x.p, x.fileId)).ToList();
+                        InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
                     }
                     else
                     {
@@ -521,8 +521,8 @@ internal class DataImporter(Action<string> reportProgress)
                             countStandard = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => x.fileId).Count();
                             if (countStandard == countDistinct)
                             {
-                                var players = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => (x.p, x.fileId));
-                                InsertMergedPlayer(players, command, collectedMergeStats, saveFilePaths, nationsMapping, clubsMapping);
+                                var players = nameKeys.Where(x => (x.nameKey, x.dob, x.clubId) == dobClub).Select(x => (x.p, x.fileId)).ToList();
+                                InsertMergedPlayer(players, command, saveFilePaths, nationsMapping, clubsMapping, collectedMergeStats);
                             }
                             else
                             {
@@ -547,24 +547,23 @@ internal class DataImporter(Action<string> reportProgress)
         return collectedDbIdMap;
     }
 
-    // dirty
     private SaveIdMapper? InsertMergedPlayer(
-        IEnumerable<(Player, int)> players,
+        List<(Player player, int fileId)> players,
         MySqlCommand insertPlayerCommand,
-        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeStats,
         string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
-        List<SaveIdMapper> clubsMapping)
+        List<SaveIdMapper> clubsMapping,
+        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeStats)
     {
         // there's not enough data across all files for the player
-        if (players.Count() / (decimal)12 < Settings.MinPlayerOccurencesRate)
+        if (players.Count / (decimal)saveFilePaths.Length < Settings.MinPlayerOccurencesRate)
         {
             _reportProgress($"The player has not enough data to be merged.");
             return null;
         }
 
-        var allFilePlayerData = new List<Dictionary<string, object>>(12);
-        var collectedSaveIds = new Dictionary<int, int>();
+        var columnsAndValues = new List<Dictionary<string, object>>(players.Count);
+        var collectedSaveIds = new Dictionary<int, int>(players.Count);
         foreach (var (player, fileId) in players)
         {
             var data = GetSaveGameDataFromCache(saveFilePaths[fileId]);
@@ -588,7 +587,7 @@ internal class DataImporter(Action<string> reportProgress)
                 { "world_reputation", player.WorldReputation },
                 { "club_id", GetMapDbId(clubsMapping, fileId, player.ClubId).DbNullIf(-1) },
                 { "value", player.Value },
-                { "contract_expiration", player.Contract?.ContractEndDate ?? (object)DBNull.Value },
+                { "contract_expiration", (player.Contract?.ContractEndDate).DbNullIf() },
                 { "wage", player.Wage },
                 { "manager_job_rel", player.Contract?.ManagerReleaseClause == true
                     ? player.Contract.ReleaseClauseValue
@@ -667,13 +666,16 @@ internal class DataImporter(Action<string> reportProgress)
                 { "work_rate", player.WorkRate }
             };
 
-            allFilePlayerData.Add(singleFilePlayerData);
+            columnsAndValues.Add(singleFilePlayerData);
             collectedSaveIds.Add(fileId, player.Id);
         }
 
-        var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>();
-        var colsAndVals = new Dictionary<string, object>();
-        foreach (var col in allFilePlayerData[0].Keys)
+        // we can extract the list of columns from the first item; other items will have the same
+        var columns = columnsAndValues[0].Keys;
+        
+        var colsStats = new List<(string field, int distinctOccurences, MergeType mergeType)>(columns.Count);
+        var colsAndVals = new Dictionary<string, object>(columns.Count);
+        foreach (var col in columns)
         {
             Func<IEnumerable<object>, object>? averageFunc = null;
             if (PlayerTableDateColumns.Contains(col))
@@ -686,15 +688,15 @@ internal class DataImporter(Action<string> reportProgress)
             }
 
             var (computedValue, mergeType, countValues) = CrawlValuesForMerge(
-                allFilePlayerData,
-                allFilePlayerData.Select(_ => _[col]),
+                columnsAndValues,
+                columnsAndValues.Select(_ => _[col]),
                 averageFunc);
 
             colsAndVals.Add(col, computedValue);
             colsStats.Add((col, countValues, mergeType));
         }
 
-        colsAndVals.Add("occurences", allFilePlayerData.Count);
+        colsAndVals.Add("occurences", columnsAndValues.Count);
 
         foreach (var c in colsAndVals.Keys)
         {
