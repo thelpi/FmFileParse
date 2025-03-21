@@ -40,4 +40,15 @@ internal static class SystemHelper
         this IEnumerable<InT> collection,
         Func<InT, OutT> keySelector)
         => collection.GroupBy(keySelector).OrderByDescending(x => x.Count()).FirstOrDefault();
+
+    /// <summary>
+    /// Parses a nullable object into <see cref="DBNull.Value"/>.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="otherDbNullValues"></param>
+    /// <returns></returns>
+    public static object DbNullIf(
+        this object? value,
+        params object[] otherDbNullValues)
+        => value is null || otherDbNullValues.Contains(value) ? DBNull.Value : value;
 }

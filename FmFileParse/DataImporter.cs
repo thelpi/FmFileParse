@@ -186,95 +186,6 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    private void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
-    {
-        _reportProgress("Updates club's staff information...");
-
-        using var wConnection = _getConnection();
-        wConnection.Open();
-        using var wCommand = wConnection.CreateCommand();
-        wCommand.CommandText = "UPDATE clubs " +
-            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
-            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
-            "WHERE id = @id";
-        wCommand.SetParameter("liked_staff_1", DbType.Int32);
-        wCommand.SetParameter("liked_staff_2", DbType.Int32);
-        wCommand.SetParameter("liked_staff_3", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_1", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_2", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_3", DbType.Int32);
-        wCommand.SetParameter("id", DbType.Int32);
-        wCommand.Prepare();
-
-        int? GetMatchDbId(int pSaveId, int fileId)
-        {
-            if (pSaveId < 0)
-            {
-                return null;
-            }
-
-            var match = players.FirstOrDefault(x => x.SaveId.Any(kvp => kvp.Key == fileId && kvp.Value == pSaveId));
-            return match.Equals(default(SaveIdMapper))
-                ? null
-                : match.DbId;
-        }
-
-        var aggregatedData = new Dictionary<int, List<(int? ls1, int? ls2, int? ls3, int? ds1, int? ds2, int? ds3)>>(players.Count);
-
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM save_files_references WHERE data_type = @data_type ORDER BY data_id, file_id";
-        command.SetParameter("@data_type", DbType.String, nameof(Club));
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var fileId = reader.GetInt32("file_id");
-            var pId = reader.GetInt32("data_id");
-
-            var saveData = GetSaveGameDataFromCache(saveFilePaths[fileId]);
-            var club = saveData.Clubs[reader.GetInt32("save_id")];
-            
-            var ls1 = GetMatchDbId(club.LikedStaff1, fileId);
-            var ls2 = GetMatchDbId(club.LikedStaff2, fileId);
-            var ls3 = GetMatchDbId(club.LikedStaff3, fileId);
-            var ds1 = GetMatchDbId(club.DislikedStaff1, fileId);
-            var ds2 = GetMatchDbId(club.DislikedStaff2, fileId);
-            var ds3 = GetMatchDbId(club.DislikedStaff3, fileId);
-
-            if (!aggregatedData.TryGetValue(pId, out var value))
-            {
-                value = new List<(int? ls1, int? ls2, int? ls3, int? ds1, int? ds2, int? ds3)>(12);
-                aggregatedData.Add(pId, value);
-            }
-
-            value.Add((ls1, ls2, ls3, ds1, ds2, ds3));
-        }
-
-        foreach (var pid in aggregatedData.Keys)
-        {
-            var ls1 = aggregatedData[pid].GetMaxOccurence(x => x.ls1)!;
-            var ls2 = aggregatedData[pid].GetMaxOccurence(x => x.ls2)!;
-            var ls3 = aggregatedData[pid].GetMaxOccurence(x => x.ls3)!;
-            var ds1 = aggregatedData[pid].GetMaxOccurence(x => x.ds1)!;
-            var ds2 = aggregatedData[pid].GetMaxOccurence(x => x.ds2)!;
-            var ds3 = aggregatedData[pid].GetMaxOccurence(x => x.ds3)!;
-
-            if (ls1.Key.HasValue || ls2.Key.HasValue || ls3.Key.HasValue
-                || ds1.Key.HasValue || ds2.Key.HasValue || ds3.Key.HasValue)
-            {
-                wCommand.Parameters["@liked_staff_1"].Value = (object?)ls1.Key ?? DBNull.Value;
-                wCommand.Parameters["@liked_staff_2"].Value = (object?)ls2.Key ?? DBNull.Value;
-                wCommand.Parameters["@liked_staff_3"].Value = (object?)ls3.Key ?? DBNull.Value;
-                wCommand.Parameters["@disliked_staff_1"].Value = (object?)ds1.Key ?? DBNull.Value;
-                wCommand.Parameters["@disliked_staff_2"].Value = (object?)ds2.Key ?? DBNull.Value;
-                wCommand.Parameters["@disliked_staff_3"].Value = (object?)ds3.Key ?? DBNull.Value;
-                wCommand.Parameters["@id"].Value = pid;
-                wCommand.ExecuteNonQuery();
-            }
-        }
-    }
-
     private void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
     {
         _reportProgress("Saves savefiles references map...");
@@ -307,21 +218,7 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    private SaveGameData GetSaveGameDataFromCache(
-        string saveFilePath)
-    {
-        if (_loadedSaveData.TryGetValue(saveFilePath, out var value))
-        {
-            return value;
-        }
-
-        var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
-        _loadedSaveData.Add(saveFilePath, data);
-        return data;
-    }
-
-    private List<SaveIdMapper> ImportConfederations(
-        string[] saveFilePaths)
+    private List<SaveIdMapper> ImportConfederations(string[] saveFilePaths)
     {
         return ImportData(x => x.Confederations,
             saveFilePaths,
@@ -336,8 +233,7 @@ internal class DataImporter(Action<string> reportProgress)
             (d, _) => d.Name);
     }
 
-    private List<SaveIdMapper> ImportNations(
-        string[] saveFilePaths,
+    private List<SaveIdMapper> ImportNations(string[] saveFilePaths,
         List<SaveIdMapper> confederationsMapping)
     {
         var nations = ImportData(x => x.Nations,
@@ -350,15 +246,14 @@ internal class DataImporter(Action<string> reportProgress)
                 ("reputation", DbType.Int32, (d, _) => d.Reputation),
                 ("league_standard", DbType.Int32, (d, _) => d.LeagueStandard),
                 ("acronym", DbType.String, (d, _) => d.Acronym),
-                ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(confederationsMapping, iFile, d.ConfederationId)),
+                ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbId(confederationsMapping, iFile, d.ConfederationId).DbNullIf(-1)),
             },
             (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
 
         return nations;
     }
 
-    private List<SaveIdMapper> ImportClubCompetitions(
-        string[] saveFilePaths,
+    private List<SaveIdMapper> ImportClubCompetitions(string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping)
     {
         return ImportData(x => x.ClubCompetitions,
@@ -369,14 +264,13 @@ internal class DataImporter(Action<string> reportProgress)
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
                 ("acronym", DbType.String, (d, iFile) => d.Acronym),
-                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
+                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbId(nationsMapping, iFile, d.NationId).DbNullIf(-1)),
                 ("reputation", DbType.Int32, (d, iFile) => d.Reputation)
             },
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
     }
 
-    private List<SaveIdMapper> ImportClubs(
-        string[] saveFilePaths,
+    private List<SaveIdMapper> ImportClubs(string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
         List<SaveIdMapper> clubCompetitionsMapping)
     {
@@ -387,13 +281,176 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 ("name", DbType.String, (d, iFile) => d.Name),
                 ("long_name", DbType.String, (d, iFile) => d.LongName),
-                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(nationsMapping, iFile, d.NationId)),
-                ("division_id", DbType.Int32, (d, iFile) => GetMapDbIdObject(clubCompetitionsMapping, iFile, d.DivisionId))
+                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbId(nationsMapping, iFile, d.NationId).DbNullIf(-1)),
+                ("division_id", DbType.Int32, (d, iFile) => GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId).DbNullIf(-1))
             },
             // note: the key here should be the same as the one used in 'DataFileLoaders.ManageDuplicateClubs'
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
     }
 
+    private void UpdateStaffOnClubs(List<SaveIdMapper> players, string[] saveFilePaths)
+    {
+        _reportProgress("Updates club's staff information...");
+
+        using var wConnection = _getConnection();
+        wConnection.Open();
+        using var wCommand = wConnection.CreateCommand();
+        wCommand.CommandText = "UPDATE clubs " +
+            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
+            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
+            "WHERE id = @id";
+        wCommand.SetParameter("liked_staff_1", DbType.Int32);
+        wCommand.SetParameter("liked_staff_2", DbType.Int32);
+        wCommand.SetParameter("liked_staff_3", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_1", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_2", DbType.Int32);
+        wCommand.SetParameter("disliked_staff_3", DbType.Int32);
+        wCommand.SetParameter("id", DbType.Int32);
+        wCommand.Prepare();
+
+        var keysByPlayer = new Dictionary<int, List<int[]>>(players.Count);
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM save_files_references WHERE data_type = @data_type ORDER BY data_id, file_id";
+        command.SetParameter("@data_type", DbType.String, nameof(Club));
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var fileId = reader.GetInt32("file_id");
+            var playerDbId = reader.GetInt32("data_id");
+            var playerSaveId = reader.GetInt32("save_id");
+
+            if (!keysByPlayer.TryGetValue(playerDbId, out var keys))
+            {
+                keys = new List<int[]>(12);
+                keysByPlayer.Add(playerDbId, keys);
+            }
+
+            var club = GetSaveGameDataFromCache(saveFilePaths[fileId]).Clubs[playerSaveId];
+
+            keys.Add(
+            [
+                GetMapDbId(players, fileId, club.LikedStaff1),
+                GetMapDbId(players, fileId, club.LikedStaff2),
+                GetMapDbId(players, fileId, club.LikedStaff3),
+                GetMapDbId(players, fileId, club.DislikedStaff1),
+                GetMapDbId(players, fileId, club.DislikedStaff2),
+                GetMapDbId(players, fileId, club.DislikedStaff3),
+            ]);
+        }
+
+        foreach (var pid in keysByPlayer.Keys)
+        {
+            var maxxedOccurences = new int?[keysByPlayer.Count];
+            for (var i = 0; i < keysByPlayer.Count; i++)
+                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i])?.Key;
+
+            if (maxxedOccurences.Any(v => v.HasValue))
+            {
+                wCommand.Parameters["@liked_staff_1"].Value = maxxedOccurences[0].DbNullIf();
+                wCommand.Parameters["@liked_staff_2"].Value = maxxedOccurences[1].DbNullIf();
+                wCommand.Parameters["@liked_staff_3"].Value = maxxedOccurences[2].DbNullIf();
+                wCommand.Parameters["@disliked_staff_1"].Value = maxxedOccurences[3].DbNullIf();
+                wCommand.Parameters["@disliked_staff_2"].Value = maxxedOccurences[4].DbNullIf();
+                wCommand.Parameters["@disliked_staff_3"].Value = maxxedOccurences[5].DbNullIf();
+                wCommand.Parameters["@id"].Value = pid;
+                wCommand.ExecuteNonQuery();
+            }
+        }
+    }
+
+    // dirty
+    private void SetClubsInformation(string[] saveFilePaths, List<SaveIdMapper> clubsMapping)
+    {
+        _reportProgress("Computes clubs information...");
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE clubs " +
+            "SET rival_club_1 = @rival_club_1, rival_club_2 = @rival_club_2, rival_club_3 = @rival_club_3, " +
+            "reputation = @reputation, bank = @bank, facilities = @facilities " +
+            "WHERE id = @id";
+        command.SetParameter("rival_club_1", DbType.Int32);
+        command.SetParameter("rival_club_2", DbType.Int32);
+        command.SetParameter("rival_club_3", DbType.Int32);
+        command.SetParameter("reputation", DbType.Int32);
+        command.SetParameter("bank", DbType.Int32);
+        command.SetParameter("facilities", DbType.Int32);
+        command.SetParameter("id", DbType.Int32);
+        command.Prepare();
+
+        void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
+        {
+            if (saveId >= 0)
+            {
+                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentId) && currentId == saveId);
+                if (!match.Equals(default(SaveIdMapper)))
+                {
+                    dbIdList.Add(match.DbId);
+                }
+            }
+        }
+
+        object MacOrAvgOrNull(List<int> source, int count, bool isId)
+        {
+            var group = source.GetMaxOccurence(x => x);
+            if (group is not null)
+            {
+                if (group.Count() >= Settings.MinValueOccurenceRate * count
+                    || (isId && source.Count == count))
+                {
+                    return group.Key;
+                }
+                else if (!isId)
+                {
+                    return (int)Math.Round(source.Average());
+                }
+            }
+            return DBNull.Value;
+        }
+
+        foreach (var clubIdMap in clubsMapping)
+        {
+            var keysCount = clubIdMap.SaveId.Keys.Count;
+
+            var RivalClub1List = new List<int>(keysCount);
+            var RivalClub2List = new List<int>(keysCount);
+            var RivalClub3List = new List<int>(keysCount);
+            var reputationList = new List<int>(keysCount);
+            var facilitiesList = new List<int>(keysCount);
+            var bankList = new List<int>(keysCount);
+
+            foreach (var fileId in clubIdMap.SaveId.Keys)
+            {
+                var club = GetSaveGameDataFromCache(saveFilePaths[fileId])
+                    .Clubs[clubIdMap.SaveId[fileId]];
+
+                reputationList.Add(club.Reputation);
+                facilitiesList.Add(club.Facilities);
+                bankList.Add(club.Bank);
+
+                AddIfMatch(RivalClub1List, club.RivalClub1, fileId);
+                AddIfMatch(RivalClub2List, club.RivalClub2, fileId);
+                AddIfMatch(RivalClub3List, club.RivalClub3, fileId);
+            }
+
+            command.Parameters["@id"].Value = clubIdMap.DbId;
+            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(RivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(RivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(RivalClub3List, keysCount, true);
+            command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
+            command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
+            command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
+            command.ExecuteNonQuery();
+
+            _reportProgress($"Information updated for clubId: {clubIdMap.DbId}.");
+        }
+    }
+
+    // dirty
     private List<SaveIdMapper> ImportPlayers(
         string[] saveFilePaths,
         List<SaveIdMapper> nationsMapping,
@@ -489,31 +546,7 @@ internal class DataImporter(Action<string> reportProgress)
         return collectedDbIdMap;
     }
 
-    private void BulkInsertPlayerMergeStatistics(
-        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
-    {
-        var informationCopy = collectedMergeInfo.ToDictionary(x => x.Key, x => x.Value);
-
-        collectedMergeInfo.Clear();
-
-        Task.Run(() =>
-        {
-            var rowsToInsert = new List<string>(informationCopy.Count * 100);
-            foreach (var playerId in informationCopy.Keys)
-            {
-                foreach (var (field, occurences, mergeType) in informationCopy[playerId])
-                {
-                    rowsToInsert.Add($"({playerId}, '{MySqlHelper.EscapeString(field)}', {occurences}, '{mergeType}')");
-                }
-            }
-            using var connection = _getConnection();
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = $"INSERT INTO players_merge_statistics (player_id, field, occurences, merge_type) VALUES {string.Join(", ", rowsToInsert)}";
-            command.ExecuteNonQuery();
-        });
-    }
-
+    // dirty
     private SaveIdMapper? InsertMergedPlayer(
         IEnumerable<(Player, int)> players,
         MySqlCommand insertPlayerCommand,
@@ -537,12 +570,12 @@ internal class DataImporter(Action<string> reportProgress)
 
             var singleFilePlayerData = new Dictionary<string, object>
             {
-                { "first_name", GetCleanDbName(player.FirstNameId, data.FirstNames) },
-                { "last_name", GetCleanDbName(player.LastNameId, data.LastNames) },
-                { "common_name", GetCleanDbName(player.CommonNameId, data.CommonNames) },
+                { "first_name", GetNameValue(player.FirstNameId, data.FirstNames).DbNullIf(string.Empty) },
+                { "last_name", GetNameValue(player.LastNameId, data.LastNames).DbNullIf(string.Empty) },
+                { "common_name", GetNameValue(player.CommonNameId, data.CommonNames).DbNullIf(string.Empty) },
                 { "date_of_birth", player.DateOfBirth },
-                { "nation_id", GetMapDbIdObject(nationsMapping, fileId, player.NationId) },
-                { "secondary_nation_id", GetMapDbIdObject(nationsMapping, fileId, player.SecondaryNationId) },
+                { "nation_id", GetMapDbId(nationsMapping, fileId, player.NationId).DbNullIf(-1) },
+                { "secondary_nation_id", GetMapDbId(nationsMapping, fileId, player.SecondaryNationId).DbNullIf(-1) },
                 { "caps", player.InternationalCaps },
                 { "international_goals", player.InternationalGoals },
                 { "right_foot", player.RightFoot },
@@ -552,7 +585,7 @@ internal class DataImporter(Action<string> reportProgress)
                 { "home_reputation", player.HomeReputation },
                 { "current_reputation", player.CurrentReputation },
                 { "world_reputation", player.WorldReputation },
-                { "club_id", GetMapDbIdObject(clubsMapping, fileId, player.ClubId) },
+                { "club_id", GetMapDbId(clubsMapping, fileId, player.ClubId).DbNullIf(-1) },
                 { "value", player.Value },
                 { "contract_expiration", player.Contract?.ContractEndDate ?? (object)DBNull.Value },
                 { "wage", player.Wage },
@@ -681,6 +714,7 @@ internal class DataImporter(Action<string> reportProgress)
         };
     }
 
+    // dirty
     private static (object computedValue, MergeType mergeType, int countValues) CrawlValuesForMerge(
         List<Dictionary<string, object>> allFilePlayerData,
         IEnumerable<object> allValues,
@@ -717,93 +751,33 @@ internal class DataImporter(Action<string> reportProgress)
         return (value, mergeType, groupedValues.Count);
     }
 
-    private void SetClubsInformation(string[] saveFilePaths, List<SaveIdMapper> clubsMapping)
+    // dirty
+    private void BulkInsertPlayerMergeStatistics(
+        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
     {
-        _reportProgress("Computes clubs information...");
+        var informationCopy = collectedMergeInfo.ToDictionary(x => x.Key, x => x.Value);
 
-        using var connection = _getConnection();
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE clubs " +
-            "SET rival_club_1 = @rival_club_1, rival_club_2 = @rival_club_2, rival_club_3 = @rival_club_3, " +
-            "reputation = @reputation, bank = @bank, facilities = @facilities " +
-            "WHERE id = @id";
-        command.SetParameter("rival_club_1", DbType.Int32);
-        command.SetParameter("rival_club_2", DbType.Int32);
-        command.SetParameter("rival_club_3", DbType.Int32);
-        command.SetParameter("reputation", DbType.Int32);
-        command.SetParameter("bank", DbType.Int32);
-        command.SetParameter("facilities", DbType.Int32);
-        command.SetParameter("id", DbType.Int32);
-        command.Prepare();
+        collectedMergeInfo.Clear();
 
-        void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
+        Task.Run(() =>
         {
-            if (saveId >= 0)
+            var rowsToInsert = new List<string>(informationCopy.Count * 100);
+            foreach (var playerId in informationCopy.Keys)
             {
-                var match = clubsMapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentId) && currentId == saveId);
-                if (!match.Equals(default(SaveIdMapper)))
+                foreach (var (field, occurences, mergeType) in informationCopy[playerId])
                 {
-                    dbIdList.Add(match.DbId);
+                    rowsToInsert.Add($"({playerId}, '{MySqlHelper.EscapeString(field)}', {occurences}, '{mergeType}')");
                 }
             }
-        }
-
-        object MacOrAvgOrNull(List<int> source, int count, bool isId)
-        {
-            var group = source.GetMaxOccurence(x => x);
-            if (group is not null)
-            {
-                if (group.Count() >= Settings.MinValueOccurenceRate * count
-                    || (isId && source.Count == count))
-                {
-                    return group.Key;
-                }
-                else if (!isId)
-                {
-                    return (int)Math.Round(source.Average());
-                }
-            }
-            return DBNull.Value;
-        }
-
-        foreach (var clubIdMap in clubsMapping)
-        {
-            var keysCount = clubIdMap.SaveId.Keys.Count;
-
-            var RivalClub1List = new List<int>(keysCount);
-            var RivalClub2List = new List<int>(keysCount);
-            var RivalClub3List = new List<int>(keysCount);
-            var reputationList = new List<int>(keysCount);
-            var facilitiesList = new List<int>(keysCount);
-            var bankList = new List<int>(keysCount);
-
-            foreach (var fileId in clubIdMap.SaveId.Keys)
-            {
-                var club = GetSaveGameDataFromCache(saveFilePaths[fileId])
-                    .Clubs[clubIdMap.SaveId[fileId]];
-
-                reputationList.Add(club.Reputation);
-                facilitiesList.Add(club.Facilities);
-                bankList.Add(club.Bank);
-
-                AddIfMatch(RivalClub1List, club.RivalClub1, fileId);
-                AddIfMatch(RivalClub2List, club.RivalClub2, fileId);
-                AddIfMatch(RivalClub3List, club.RivalClub3, fileId);
-            }
-
-            command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MacOrAvgOrNull(RivalClub1List, keysCount, true);
-            command.Parameters["@rival_club_2"].Value = MacOrAvgOrNull(RivalClub2List, keysCount, true);
-            command.Parameters["@rival_club_3"].Value = MacOrAvgOrNull(RivalClub3List, keysCount, true);
-            command.Parameters["@bank"].Value = MacOrAvgOrNull(bankList, keysCount, false);
-            command.Parameters["@facilities"].Value = MacOrAvgOrNull(facilitiesList, keysCount, false);
-            command.Parameters["@reputation"].Value = MacOrAvgOrNull(reputationList, keysCount, false);
+            using var connection = _getConnection();
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"INSERT INTO players_merge_statistics (player_id, field, occurences, merge_type) VALUES {string.Join(", ", rowsToInsert)}";
             command.ExecuteNonQuery();
-
-            _reportProgress($"Information updated for clubId: {clubIdMap.DbId}.");
-        }
+        });
     }
+
+    #region reusable
 
     private List<SaveIdMapper> ImportData<T>(
         Func<SaveGameData, Dictionary<int, T>> sourceDataGet,
@@ -871,22 +845,19 @@ internal class DataImporter(Action<string> reportProgress)
         return mapping;
     }
 
-    private static object GetMapDbIdObject(List<SaveIdMapper> mapping, int fileIndex, int saveId)
+    private SaveGameData GetSaveGameDataFromCache(string saveFilePath)
     {
-        var dbId = GetMapDbId(mapping, fileIndex, saveId);
-        return dbId == -1 ? DBNull.Value : dbId;
+        if (!_loadedSaveData.TryGetValue(saveFilePath, out var data))
+        {
+            data = SaveGameHandler.OpenSaveGameIntoMemory(saveFilePath);
+            _loadedSaveData.Add(saveFilePath, data);
+        }
+
+        return data;
     }
 
     private static int GetMapDbId(List<SaveIdMapper> mapping, int fileIndex, int saveId)
-        => saveId < 0 ? -1 :mapping.First(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId).DbId;
-
-    private static object GetCleanDbName(int nameId, Dictionary<int, string> names)
-    {
-        return names.TryGetValue(nameId, out var localName)
-            && !string.IsNullOrWhiteSpace(localName)
-            ? localName.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim()
-            : DBNull.Value;
-    }
+        => saveId < 0 ? -1 : mapping.First(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId).DbId;
 
     private static string GetNameValue(int nameId, Dictionary<int, string> names)
     {
@@ -904,4 +875,6 @@ internal class DataImporter(Action<string> reportProgress)
                 ? DbType.Date
                 : DbType.Int32);
     }
+
+    #endregion
 }
