@@ -715,41 +715,23 @@ internal class DataImporter(Action<string> reportProgress)
         };
     }
 
-    // dirty
     private static (object computedValue, MergeType mergeType, int countValues) CrawlValuesForMerge(
         List<Dictionary<string, object>> allFilePlayerData,
         IEnumerable<object> allValues,
         Func<IEnumerable<object>, object>? averageFunc)
     {
         // note: there's an arbitrary choice when the two first occurences have the same count
-        var groupedValues = allValues
+        var groups = allValues
             .GroupBy(x => x)
             .Select(x => (Value: x.Key, Count: x.Count()))
             .OrderByDescending(x => x.Count)
             .ToList();
 
-        MergeType mergeType;
-        object value;
-        if (groupedValues[0].Count < Settings.MinValueOccurenceRate * allFilePlayerData.Count)
-        {
-            if (averageFunc is not null && !groupedValues.Any(x => x.Value == DBNull.Value))
-            {
-                value = averageFunc(allValues);
-                mergeType = MergeType.Average;
-            }
-            else
-            {
-                value = groupedValues[0].Value;
-                mergeType = MergeType.ModeBelowThreshold;
-            }
-        }
-        else
-        {
-            value = groupedValues[0].Value;
-            mergeType = MergeType.ModeAboveThreshold;
-        }
-
-        return (value, mergeType, groupedValues.Count);
+        return groups[0].Count >= Settings.MinValueOccurenceRate * allFilePlayerData.Count
+            ? (groups[0].Value, MergeType.ModeAboveThreshold, groups.Count)
+                : (averageFunc is not null && !groups.Any(x => x.Value == DBNull.Value)
+                    ? (averageFunc(allValues), MergeType.Average, groups.Count)
+                    : (groups[0].Value, MergeType.ModeBelowThreshold, groups.Count));
     }
 
     private void BulkInsertPlayerMergeStatistics(
