@@ -48,7 +48,12 @@ internal static class DataPositionAttributeParser
             }
 
             object? propValue = null;
-            if (p.PropertyType == typeof(TransferStatus) || p.PropertyType == typeof(TransferStatus?))
+            if (p.PropertyType == typeof((byte, byte)))
+            {
+                var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
+                propValue = (sourceValue, sourceValue);
+            }
+            else if (p.PropertyType == typeof(TransferStatus) || p.PropertyType == typeof(TransferStatus?))
             {
                 var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
                 propValue = sourceValue.ToTransferStatus();

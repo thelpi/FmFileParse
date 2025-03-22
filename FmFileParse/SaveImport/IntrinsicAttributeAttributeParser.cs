@@ -20,37 +20,44 @@ internal static class IntrinsicAttributeAttributeParser
         .Select(x => (x.Property, x.Attribute!))
         .ToArray();
 
-    // note: 'CurrentAbility' and 'GoalKeeperPos' must be known beforehand
+    // note: 'CurrentAbility', 'PotentialAbility' and 'GoalKeeperPos' must be known beforehand
     internal static Player ComputeAndSetIntrinsicAttributes(this Player player)
     {
         foreach (var (property, attribute) in _intrinsicAttributes)
         {
-            var intrinsicValue = (sbyte)(byte)property.GetValue(player)!;
-            var inGameValue = intrinsicValue.IntrisincToInGameAttributeValue(attribute.Type, player.CurrentAbility, player.GoalKeeperPos);
+            var intrinsicValue = (sbyte)(((byte, byte))property.GetValue(player)!).Item1;
+            var inGameValue = intrinsicValue.IntrisincToInGameAttributeValue(attribute.Type, player.CurrentAbility, player.PotentialAbility, player.GoalKeeperPos);
             property.SetValue(player, inGameValue);
         }
         return player;
     }
 
-    private static byte IntrisincToInGameAttributeValue(
+    private static (byte, byte) IntrisincToInGameAttributeValue(
         this sbyte intrinsicValue,
         IntrinsicType intrinsicType,
         short currentAbility,
+        short potentialAbility,
         byte goalKeeperRate)
     {
         var isGk = goalKeeperRate >= MinAttributeForPosition;
 
         return intrinsicType switch
         {
-            IntrinsicType.GoalkeeperAttribute => intrinsicValue.Convert(currentAbility, isGk ? HighConversion : LowConversion),
-            IntrinsicType.FieldPlayerAttribute => intrinsicValue.Convert(currentAbility, isGk ? LowConversion : HighConversion),
-            _ => intrinsicValue.Convert(currentAbility, HighConversion),
+            IntrinsicType.GoalkeeperAttribute =>
+                (intrinsicValue.Convert(currentAbility, isGk ? HighConversion : LowConversion),
+                intrinsicValue.Convert(potentialAbility, isGk ? HighConversion : LowConversion)),
+            IntrinsicType.FieldPlayerAttribute =>
+                (intrinsicValue.Convert(currentAbility, isGk ? LowConversion : HighConversion),
+                intrinsicValue.Convert(potentialAbility, isGk ? LowConversion : HighConversion)),
+            _ =>
+                (intrinsicValue.Convert(currentAbility, HighConversion),
+                intrinsicValue.Convert(potentialAbility, HighConversion)),
         };
     }
 
-    private static byte Convert(this sbyte intrinsicValue, short currentAbility, double typeCoefficient)
+    private static byte Convert(this sbyte intrinsicValue, short ability, double typeCoefficient)
     {
-        var d = (intrinsicValue / 10.0) + (currentAbility / typeCoefficient) + 10;
+        var d = (intrinsicValue / 10.0) + (ability / typeCoefficient) + 10;
 
         var r = (d * d / 30.0) + (d / 3.0) + 0.5;
 
