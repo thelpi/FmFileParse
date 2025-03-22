@@ -2,8 +2,7 @@
 
 public enum TransferStatus
 {
-    Any,
-    TransferListedByClub,
+    TransferListedByClub = 1,
     TransferListedByRequest,
     ListedForLoan,
     Unknown

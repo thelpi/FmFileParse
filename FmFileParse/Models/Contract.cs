@@ -44,10 +44,10 @@ public class Contract
     public int ReleaseClauseValue { get; set; }
 
     [DataPosition(78)]
-    public TransferStatus TransferStatus { get; set; }
+    public TransferStatus? TransferStatus { get; set; }
 
     [DataPosition(79)]
-    public SquadStatus SquadStatus { get; set; }
+    public SquadStatus? SquadStatus { get; set; }
 
     [DataPosition(73)]
     public bool LeavingOnBosman { get; set; }

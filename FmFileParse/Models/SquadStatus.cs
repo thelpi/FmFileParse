@@ -2,8 +2,7 @@
 
 public enum SquadStatus
 {
-    Any,
-    Uncertain,
+    Uncertain = 1,
     Indispensable,
     Important,
     SquadRotation,

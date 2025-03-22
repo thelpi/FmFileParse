@@ -8,6 +8,27 @@ internal static class DataPositionAttributeParser
 {
     private static readonly Dictionary<Type, List<(PropertyInfo, DataPositionAttribute?, bool)>> _reflectionCache = [];
 
+    private static readonly Dictionary<TransferStatus, Func<byte, bool>> _transferStatusOperations = new()
+    {
+         { TransferStatus.TransferListedByClub, x => (x & 1) == 1 },
+         { TransferStatus.TransferListedByRequest, x => (x & 8) == 8 },
+         { TransferStatus.ListedForLoan, x => (x & 2) == 2 },
+         { TransferStatus.Unknown, x => !((x & 1) == 1 || (x & 8) == 8 ||  (x & 2) == 2) }
+    };
+
+    private static readonly Dictionary<SquadStatus, Func<byte, bool>> _squadStatusOperations = new()
+    {
+         { SquadStatus.Uncertain, x => (x & 240) == 0 },
+         { SquadStatus.Indispensable, x => (x & 224) == 0 },
+         { SquadStatus.Important, x => (x & 208) == 0 },
+         { SquadStatus.SquadRotation, x => (x & 192) == 0 },
+         { SquadStatus.Backup, x => (x & 176) == 0 },
+         { SquadStatus.HotProspect, x => (x & 160) == 0 },
+         { SquadStatus.DecentYoung, x => (x & 144) == 0 },
+         { SquadStatus.NotNeeded, x => (x & 128) == 0 },
+         { SquadStatus.OnTrial, x => (x & 112) == 0 },
+    };
+
     internal static T SetDataPositionableProperties<T>(this T data, byte[] binaryContent)
     {
         if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))
@@ -27,15 +48,15 @@ internal static class DataPositionAttributeParser
             }
 
             object? propValue = null;
-            if (p.PropertyType == typeof(TransferStatus))
+            if (p.PropertyType == typeof(TransferStatus) || p.PropertyType == typeof(TransferStatus?))
             {
                 var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
-                // TODO
+                propValue = sourceValue.ToTransferStatus();
             }
-            else if (p.PropertyType == typeof(SquadStatus))
+            else if (p.PropertyType == typeof(SquadStatus) || p.PropertyType == typeof(SquadStatus?))
             {
                 var sourceValue = binaryContent.GetByteFromBytes(attr.StartAt);
-                // TODO
+                propValue = sourceValue.ToSquadStatus();
             }
             else if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
@@ -75,5 +96,31 @@ internal static class DataPositionAttributeParser
         }
 
         return data;
+    }
+
+    private static TransferStatus? ToTransferStatus(this byte statusByte)
+    {
+        foreach (var (transferStatus, func) in _transferStatusOperations)
+        {
+            if (func(statusByte))
+            {
+                return transferStatus;
+            }
+        }
+
+        return null;
+    }
+
+    private static SquadStatus? ToSquadStatus(this byte statusByte)
+    {
+        foreach (var (squadStatus, func) in _squadStatusOperations)
+        {
+            if (func(statusByte))
+            {
+                return squadStatus;
+            }
+        }
+
+        return null;
     }
 }
