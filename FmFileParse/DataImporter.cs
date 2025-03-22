@@ -27,7 +27,7 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static readonly string[] PlayerTableNoAvgColumns =
     [
-        "club_id", "nation_id", "secondary_nation_id", "future_club_id", "tranfer_status", "squad_status"
+        "club_id", "nation_id", "secondary_nation_id", "future_club_id", "transfer_status", "squad_status"
     ];
 
     private static readonly string[] PlayerTableColumns =
@@ -43,7 +43,7 @@ internal class DataImporter(Action<string> reportProgress)
         // club related
         "club_id", "value", "contract_expiration", "wage",
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
-        "leaving_on_bosman", "future_club_id", "tranfer_status", "squad_status",
+        "leaving_on_bosman", "future_club_id", "transfer_status", "squad_status",
         // positions
         "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
         "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
