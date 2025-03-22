@@ -20,9 +20,14 @@ internal class DataImporter(Action<string> reportProgress)
         "date_of_birth", "contract_expiration"
     ];
 
-    private static readonly string[] PlayerTableForeignKeyColumns =
+    private static readonly string[] PlayerTableBoolColumns =
     [
-        "club_id", "nation_id", "secondary_nation_id"
+        "leaving_on_bosman"
+    ];
+
+    private static readonly string[] PlayerTableNoAvgColumns =
+    [
+        "club_id", "nation_id", "secondary_nation_id", "future_club_id", "tranfer_status", "squad_status"
     ];
 
     private static readonly string[] PlayerTableColumns =
@@ -38,6 +43,7 @@ internal class DataImporter(Action<string> reportProgress)
         // club related
         "club_id", "value", "contract_expiration", "wage",
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
+        "leaving_on_bosman", "future_club_id", "tranfer_status", "squad_status",
         // positions
         "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
         "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
@@ -81,6 +87,7 @@ internal class DataImporter(Action<string> reportProgress)
         ("players", "nation_id", "nations", "id"),
         ("players", "secondary_nation_id", "nations", "id"),
         ("players", "club_id", "clubs", "id"),
+        ("players", "future_club_id", "clubs", "id"),
         ("players_merge_statistics", "player_id", "players", "id"),
     ];
 
@@ -623,6 +630,10 @@ internal class DataImporter(Action<string> reportProgress)
                 { "pos_forward", player.StrikerPos },
                 { "pos_wingback", player.WingBackPos },
                 { "pos_free_role", player.FreeRolePos },
+                { "transfer_status", player.Contract != null && player.Contract.TransferStatus != TransferStatus.Any ? (int)player.Contract.TransferStatus : DBNull.Value },
+                { "squad_status", player.Contract != null && player.Contract.SquadStatus != SquadStatus.Any ? (int)player.Contract.SquadStatus : DBNull.Value },
+                { "leaving_on_bosman", player.Contract?.LeavingOnBosman ?? false },
+                { "future_club_id", GetMapDbIdIfAny(clubsMapping, fileId, player.Contract?.FutureClubId ?? -1).DbNullIf(-1) },
                 { "side_left", player.LeftSide },
                 { "side_right", player.RightSide },
                 { "side_center", player.CentreSide },
@@ -692,7 +703,7 @@ internal class DataImporter(Action<string> reportProgress)
             {
                 averageFunc = values => values.Select(Convert.ToDateTime).Average();
             }
-            else if (!PlayerTableStringColumns.Contains(col) && !PlayerTableForeignKeyColumns.Contains(col))
+            else if (!PlayerTableStringColumns.Contains(col) && !PlayerTableBoolColumns.Contains(col) && !PlayerTableNoAvgColumns.Contains(col))
             {
                 averageFunc = values => (int)Math.Round(values.Select(Convert.ToInt32).Average());
             }
@@ -878,7 +889,9 @@ internal class DataImporter(Action<string> reportProgress)
             ? DbType.String
             : (PlayerTableDateColumns.Contains(column)
                 ? DbType.Date
-                : DbType.Int32);
+                : (PlayerTableBoolColumns.Contains(column)
+                    ? DbType.Boolean
+                    : DbType.Int32));
     }
 
     #endregion

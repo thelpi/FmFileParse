@@ -46,6 +46,7 @@ static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData da
         Console.WriteLine($"Name: {fullName} - Ability: {p.CurrentAbility} - WorldRep: {p.WorldReputation} - DateOfBirth: {p.DateOfBirth}");
         Console.WriteLine($"Caps: {p.InternationalCaps} - Value: {p.Value} - Adaptability: {p.Adaptability}");
         Console.WriteLine($"DefenderPos: {p.DefenderPos} - Flair: {p.Flair} - Heading: {p.Heading}");
+        Console.WriteLine($"Squad status: {p.Contract?.SquadStatus} - Transfer status: {p.Contract?.TransferStatus}");
 
         data.Clubs.TryGetValue(p.ClubId, out var pClub);
         if (pClub is not null)
