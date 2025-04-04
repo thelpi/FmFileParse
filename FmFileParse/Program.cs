@@ -19,6 +19,10 @@ var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, "*.sav");
 
 if (choice == 0)
 {
+    var dbFileData = DbFileHandler.GetDbFileData(Settings.DatFileTemplatePath);
+
+    DisplayPlayerInformation(dbFileData);
+
     var data = SaveGameHandler.OpenSaveGameIntoMemory(saveFiles[0]);
 
     DisplayPlayerInformation(data);
@@ -33,7 +37,7 @@ else
 Console.WriteLine("Process is done; Press any key to close.");
 Console.ReadKey();
 
-static void DisplayPlayerInformation(FmFileParse.Models.Internal.SaveGameData data)
+static void DisplayPlayerInformation(FmFileParse.Models.Internal.BaseFileData data)
 {
     var p = data.Players?.FirstOrDefault(x => x?.CurrentAbility > 180);
     if (p is not null)

@@ -4,7 +4,7 @@ namespace FmFileParse.Models;
 
 public class Confederation : BaseData
 {
-    [DataPosition(4, Length = 50)]
+    [DataPosition(4, Length = 25)]
     public string ContinentName { get; set; } = string.Empty;
 
     [DataPosition(61, Length = 100)]

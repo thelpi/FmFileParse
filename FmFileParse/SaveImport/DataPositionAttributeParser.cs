@@ -29,6 +29,65 @@ internal static class DataPositionAttributeParser
          { SquadStatus.OnTrial, x => (x & 112) == 0 },
     };
 
+    internal static T SetDataPositionableProperties<T>(this T data, string stringContent)
+    {
+        if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))
+        {
+            propsWithAttr = typeof(T)
+                .GetProperties()
+                .Select(p => (p, p.GetCustomAttribute<DataPositionAttribute>(), p.GetCustomAttribute<ReversedAttributeAttribute>() is not null))
+                .ToList();
+            _reflectionCache.Add(typeof(T), propsWithAttr);
+        }
+
+        foreach (var (p, attr, reversed) in propsWithAttr)
+        {
+            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData)))
+            {
+                continue;
+            }
+
+            object? propValue = null;
+            if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
+            {
+                var sourceValue = StringHandler.ByteGet(stringContent, attr.StartAt);
+                propValue = reversed ? (byte)(IntrinsicAttributeAttributeParser.MaxAttributeValue - sourceValue) : sourceValue;
+            }
+            else if (p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+            {
+                propValue = StringHandler.BoolGet(stringContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?))
+            {
+                propValue = StringHandler.DateGet(stringContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(int) || p.PropertyType == typeof(int?))
+            {
+                propValue = StringHandler.IntGet(stringContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(short) || p.PropertyType == typeof(short?))
+            {
+                propValue = StringHandler.ShortGet(stringContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(decimal) || p.PropertyType == typeof(decimal?))
+            {
+                propValue = (decimal)StringHandler.DoubleGet(stringContent, attr.StartAt);
+            }
+            else if (p.PropertyType == typeof(string))
+            {
+                propValue = StringHandler.StringGet(stringContent, attr.StartAt, attr.Length);
+            }
+            else
+            {
+                throw new NotSupportedException("That type of attribute is not managed!");
+            }
+
+            p.SetValue(data, propValue);
+        }
+
+        return data;
+    }
+
     internal static T SetDataPositionableProperties<T>(this T data, byte[] binaryContent)
     {
         if (!_reflectionCache.TryGetValue(typeof(T), out var propsWithAttr))

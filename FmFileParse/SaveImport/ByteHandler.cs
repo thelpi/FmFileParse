@@ -62,19 +62,9 @@ internal static class ByteHandler
         var day = BitConverter.ToInt16(bytes, 0);
         var year = BitConverter.ToInt16(bytes, 2);
 
-        if (year <= 0)
-        {
-            return null;
-        }
-
-        /* Something is going on with Leap Years that I can't fathom..
-         * Maybe its because the exe is patched to adjust the year?
-        if (bytes[4] == 1 && day > 59)
-        {
-            day -= 1;
-        }*/
-
-        return new DateTime(year, 1, 1).AddDays(day);
+        return year <= 0
+            ? null
+            : new DateTime(year, 1, 1).AddDays(day);
     }
 
     private static int GetNumberOfRecordsFromDataFile(this DataFile dataFile, int sizeOfData, BinaryReader br, out int startReadPosition)
