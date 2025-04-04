@@ -18,14 +18,58 @@ internal static class DbFileHandler
             Nations = GetData<Nation>(datFileTemplatePath, "nation", 290),
         };
 
-        // players
+        var stringData = StringHandler.ExtractFileData(datFileTemplatePath, "staff", 157, out var staffEndPosition, stopAtIdBreak: true);
+
+        var staffList = new Dictionary<int, Staff>(stringData.Count);
+        foreach (var singleString in stringData)
+        {
+            var s = new Staff();
+            s.SetDataPositionableProperties(singleString);
+            if (s.DbStaffPlayerId < 0)
+            {
+
+            }
+            else if (staffList.ContainsKey(s.DbStaffPlayerId))
+            {
+
+            }
+            else
+            {
+                staffList.Add(s.DbStaffPlayerId, s);
+            }
+        }
+
+        // coach data (we don't care about)
+        _ = StringHandler.ExtractFileData(datFileTemplatePath, "staff", 68, out var coachEndPosition, startAt: staffEndPosition, stopAtIdBreak: true);
+        
+        stringData = StringHandler.ExtractFileData(datFileTemplatePath, "staff", 70, out _, startAt: coachEndPosition + staffEndPosition);
+        var player = new List<Player>(stringData.Count);
+        foreach (var singleString in stringData)
+        {
+            var p = new Player();
+            p.SetDataPositionableProperties(singleString);
+            if (staffList.TryGetValue(p.PlayerId, out var staff))
+            {
+                p.PopulateStaffPropertiers(staff);
+                if (staff.ClubId >= 0)
+                {
+                    p.Contract = new Contract
+                    {
+                        ContractEndDate = staff.DateContractEnd
+                    };
+                }
+                player.Add(p);
+            }
+        }
+
+        dbFileData.Players = player;
 
         return dbFileData;
     }
 
     private static Dictionary<int, string> GetStringData(string datFileTemplatePath, string dataName, int splitPosition)
     {
-        var stringData = StringHandler.ExtractFileData(datFileTemplatePath, dataName, splitPosition);
+        var stringData = StringHandler.ExtractFileData(datFileTemplatePath, dataName, splitPosition, out _);
 
         var dataList = new Dictionary<int, string>(stringData.Count);
         for (var i = 0; i < stringData.Count; i++)
@@ -39,7 +83,7 @@ internal static class DbFileHandler
     private static Dictionary<int, T> GetData<T>(string datFileTemplatePath, string dataName, int splitPosition)
         where T : BaseData, new()
     {
-        var stringData = StringHandler.ExtractFileData(datFileTemplatePath, dataName, splitPosition);
+        var stringData = StringHandler.ExtractFileData(datFileTemplatePath, dataName, splitPosition, out _);
 
         var dataList = new Dictionary<int, T>(stringData.Count);
         foreach (var singleString in stringData)

@@ -7,23 +7,8 @@ public class Contract
     [DataPosition(0)]
     public int PlayerId { get; set; }
 
-    [DataPosition(16)]
-    public DateTime? DateJoined { get; set; }
-
-    [DataPosition(37)]
-    public DateTime? ContractStartDate { get; set; }
-
     [DataPosition(45)]
     public DateTime? ContractEndDate { get; set; }
-
-    [DataPosition(12)]
-    public int WagePerWeek { get; set; }
-
-    [DataPosition(16)]
-    public int GoalBonus { get; set; }
-
-    [DataPosition(20)]
-    public int AssistBonus { get; set; }
 
     [DataPosition(28)]
     public bool NonPromotionReleaseClause { get; set; }

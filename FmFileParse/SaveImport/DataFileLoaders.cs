@@ -42,7 +42,7 @@ internal static class DataFileLoaders
     }
 
     private static Dictionary<int, Staff> GetDataFileStaffDictionary(this SaveGameFile savegame, out List<Staff> duplicateStaff)
-        => savegame.GetDataFileDictionary(DataFileType.Staff, x => x.StaffPlayerId, out duplicateStaff);
+        => savegame.GetDataFileDictionary(DataFileType.Staff, x => x.SaveStaffPlayerId, out duplicateStaff);
 
     private static Dictionary<int, Contract> GetDataFileContractsDictionary(this SaveGameFile savegame)
         => savegame.GetDataFileDictionary<Contract>(DataFileType.Contracts, x => x.PlayerId, out _);

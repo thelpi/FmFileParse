@@ -42,13 +42,19 @@ internal static class DataPositionAttributeParser
 
         foreach (var (p, attr, reversed) in propsWithAttr)
         {
-            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData)))
+            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData))
+                || attr.FileType == Models.Internal.PositionAttributeFileTypes.SaveFileOnly)
             {
                 continue;
             }
 
             object? propValue = null;
-            if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
+            if (p.PropertyType == typeof((byte, byte)))
+            {
+                var sourceValue = StringHandler.ByteGet(stringContent, attr.StartAt);
+                propValue = (sourceValue, sourceValue);
+            }
+            else if (p.PropertyType == typeof(byte) || p.PropertyType == typeof(byte?))
             {
                 var sourceValue = StringHandler.ByteGet(stringContent, attr.StartAt);
                 propValue = reversed ? (byte)(IntrinsicAttributeAttributeParser.MaxAttributeValue - sourceValue) : sourceValue;
@@ -101,7 +107,8 @@ internal static class DataPositionAttributeParser
 
         foreach (var (p, attr, reversed) in propsWithAttr)
         {
-            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData)))
+            if (attr is null || (p.DeclaringType != typeof(T) && p.DeclaringType != typeof(BaseData))
+                || attr.FileType == Models.Internal.PositionAttributeFileTypes.DbFileOnly)
             {
                 continue;
             }

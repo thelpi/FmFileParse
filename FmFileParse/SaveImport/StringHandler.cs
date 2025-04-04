@@ -27,29 +27,41 @@ internal static class StringHandler
     internal static DateTime? DateGet(string s, int pos)
     {
         var year = ShortGet(s, pos + 2);
-        var days = ShortGet(s, pos) + 1;
+        var days = ShortGet(s, pos);
 
         // TODO: mutualize with the "ByteHandler" version
-        // might be bugged
-        return year <= 0
+        return year <= 1900
             ? null
             : new DateTime(year, 1, 1).AddDays(days);
     }
 
-    internal static List<string> ExtractFileData(string datFileTemplatePath, string fileName, int splitPosition)
+    internal static List<string> ExtractFileData(string datFileTemplatePath, string fileName, int splitPosition, out int endPosition, int startAt = 0, bool stopAtIdBreak = false)
     {
+        endPosition = -1;
+
         using var sr = new StreamReader(string.Format(datFileTemplatePath, fileName), Encoding);
 
-        var data = sr.ReadToEnd();
+        var data = sr.ReadToEnd()[startAt..];
 
         var dataCollection = new List<string>((data.Length / splitPosition) + 1);
 
+        var previousId = -1;
         var posInTxt = 0;
         while (posInTxt < data.Length)
         {
             var rawData = data.Substring(posInTxt, splitPosition);
             if (!string.IsNullOrWhiteSpace(rawData))
             {
+                if (stopAtIdBreak)
+                {
+                    var id = IntGet(rawData, 0);
+                    if (id != previousId + 1)
+                    {
+                        endPosition = posInTxt;
+                        break;
+                    }
+                    previousId = id;
+                }
                 dataCollection.Add(rawData);
             }
             posInTxt += splitPosition;
