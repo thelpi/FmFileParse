@@ -255,7 +255,7 @@ internal class DataImporter(Action<string> reportProgress)
             new (string, DbType, Func<Nation, int, object>)[]
             {
                 ("name", DbType.String, (d, _) => d.Name),
-                ("is_eu", DbType.Boolean, (d, _) => d.IsEu == 2),
+                ("is_eu", DbType.Boolean, (d, _) => d.IsEu),
                 ("reputation", DbType.Int32, (d, _) => d.Reputation),
                 ("league_standard", DbType.Int32, (d, _) => d.LeagueStandard),
                 ("acronym", DbType.String, (d, _) => d.Acronym),

@@ -25,15 +25,7 @@ internal static class DbFileHandler
         {
             var s = new Staff();
             s.SetDataPositionableProperties(singleString);
-            if (s.DbStaffPlayerId < 0)
-            {
-
-            }
-            else if (staffList.ContainsKey(s.DbStaffPlayerId))
-            {
-
-            }
-            else
+            if (s.DbStaffPlayerId >= 0)
             {
                 staffList.Add(s.DbStaffPlayerId, s);
             }
