@@ -1,4 +1,5 @@
 ﻿using FmFileParse.Models.Attributes;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.Models;
 
@@ -25,4 +26,28 @@ public class Nation : BaseData
     public short Reputation { get; set; }
 
     public bool IsEu => IsEuId == EuId;
+
+    public override IEnumerable<string> Describe(BaseFileData data)
+    {
+        yield return $"Name: {Name} - Acronym: {Acronym}";
+        yield return $"Reputation: {Reputation} - LeagueStandard: {LeagueStandard}";
+        yield return $"IsEu: {IsEu}";
+
+        yield return string.Empty;
+        yield return "---- Confederation (from country) details ----";
+        data.Confederations.TryGetValue(ConfederationId, out var confederation);
+        if (confederation is not null)
+        {
+            foreach (var row in confederation.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return ConfederationId >= 0
+                ? $"No confederation with id {ConfederationId} found!"
+                : "Confederation is not set on the country.";
+        }
+    }
 }

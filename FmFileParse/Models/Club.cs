@@ -1,4 +1,5 @@
 ﻿using FmFileParse.Models.Attributes;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.Models;
 
@@ -51,4 +52,45 @@ public class Club : BaseData
 
     [DataPosition(187)]
     public int RivalClub3 { get; set; }
+
+    public override IEnumerable<string> Describe(BaseFileData data)
+    {
+        yield return $"Name: {Name} - LongName: {LongName}";
+        yield return $"Reputation: {Reputation}";
+        yield return $"Bank: {Bank} - Facilities: {Facilities}";
+
+        yield return string.Empty;
+        yield return "---- Club competition (from club) details ----";
+        data.ClubCompetitions.TryGetValue(DivisionId, out var competition);
+        if (competition is not null)
+        {
+            foreach (var row in competition.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return DivisionId >= 0
+                ? $"No competition with id {DivisionId} found!"
+                : "Competition is not set on the club.";
+        }
+
+        yield return string.Empty;
+        yield return "---- Nation (from club) details ----";
+        data.Nations.TryGetValue(NationId, out var nation);
+        if (nation is not null)
+        {
+            foreach (var row in nation.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return NationId >= 0
+                ? $"No nation with id {NationId} found!"
+                : "Nation is not set on the club.";
+        }
+    }
 }

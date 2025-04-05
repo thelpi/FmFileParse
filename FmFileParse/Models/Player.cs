@@ -1,4 +1,5 @@
 ﻿using FmFileParse.Models.Attributes;
+using FmFileParse.Models.Internal;
 
 namespace FmFileParse.Models;
 
@@ -203,6 +204,80 @@ public class Player : Staff
     [DataPosition(65)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
     public (byte current, byte potential) ThrowIns { get; set; }
+
+    public override IEnumerable<string> Describe(BaseFileData data)
+    {
+        data.FirstNames.TryGetValue(FirstNameId, out var pFirstName);
+        data.LastNames.TryGetValue(LastNameId, out var pLastName);
+        data.CommonNames.TryGetValue(CommonNameId, out var pCommonName);
+
+        var fullName = !string.IsNullOrWhiteSpace(pCommonName)
+            ? pCommonName
+            : string.Concat(pLastName, pFirstName);
+
+        yield return $"FullName: {fullName} - DateOfBirth: {DateOfBirth}";
+        yield return $"CurrentAbility: {CurrentAbility} - PotentialAbility: {PotentialAbility}";
+        yield return $"RightFoot: {RightFoot} - LeftFoot: {LeftFoot}";
+        yield return $"CurrentReputation: {CurrentReputation} - WorldReputation: {WorldReputation} - CurrentReputation: {CurrentReputation}";
+        yield return $"InternationalCaps: {InternationalCaps} - InternationalGoals: {InternationalGoals}";
+        yield return $"Value: {Value} - ContractEndDate: {Contract?.ContractEndDate}";
+        yield return $"Squad status: {Contract?.SquadStatus} - Transfer status: {Contract?.TransferStatus}";
+        yield return $"LeftSide: {LeftSide} - CentreSide: {CentreSide} - RightSide: {RightSide}";
+        yield return $"GoalKeeperPos: {GoalKeeperPos} - SweeperPos: {SweeperPos} - DefenderPos: {DefenderPos}";
+        yield return $"DefensiveMidfielderPos: {DefensiveMidfielderPos} - MidfielderPos: {MidfielderPos} - AttackingMidfielderPos: {AttackingMidfielderPos}";
+        yield return $"StrikerPos: {StrikerPos} - FreeRolePos: {FreeRolePos} - WingBackPos: {WingBackPos}";
+
+        yield return string.Empty;
+        yield return "---- Club (from player) details ----";
+        data.Clubs.TryGetValue(ClubId, out var club);
+        if (club is not null)
+        {
+            foreach (var row in club.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return ClubId >= 0
+                ? $"No club with id {ClubId} found!"
+                : "Club is not set on the player.";
+        }
+
+        yield return string.Empty;
+        yield return "---- Nation (from club) details ----";
+        data.Nations.TryGetValue(NationId, out var nation);
+        if (nation is not null)
+        {
+            foreach (var row in nation.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return NationId >= 0
+                ? $"No nation with id {NationId} found!"
+                : "Nation is not set on the club.";
+        }
+
+        yield return string.Empty;
+        yield return "---- Nation (from club) details ----";
+        data.Nations.TryGetValue(SecondaryNationId, out var secondaryNation);
+        if (secondaryNation is not null)
+        {
+            foreach (var row in secondaryNation.Describe(data))
+            {
+                yield return row;
+            }
+        }
+        else
+        {
+            yield return SecondaryNationId >= 0
+                ? $"No nation with id {SecondaryNationId} found!"
+                : "Nation is not set on the club.";
+        }
+    }
 
     internal void PopulateStaffPropertiers(Staff staff)
     {
