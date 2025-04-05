@@ -643,7 +643,7 @@ internal class DataImporter(Action<string> reportProgress)
                 { "side_left", player.LeftSide },
                 { "side_right", player.RightSide },
                 { "side_center", player.CentreSide },
-                { "anticipation", player.Anticipation.current },
+                { "anticipation", player.Anticipation }, // intrinsic
                 { "acceleration", player.Acceleration },
                 { "adaptability", player.Adaptability },
                 { "aggression", player.Aggression },
@@ -653,62 +653,63 @@ internal class DataImporter(Action<string> reportProgress)
                 { "bravery", player.Bravery },
                 { "consistency", player.Consistency },
                 { "corners", player.Corners },
-                { "creativity", player.Creativity.current },
-                { "crossing", player.Crossing.current },
-                { "decisions", player.Decisions.current },
+                { "creativity", player.Creativity }, // intrinsic
+                { "crossing", player.Crossing }, // intrinsic
+                { "decisions", player.Decisions }, // intrinsic
                 { "determination", player.Determination },
                 { "dirtiness", player.Dirtiness },
-                { "dribbling", player.Dribbling.current },
-                { "finishing", player.Finishing.current },
+                { "dribbling", player.Dribbling }, // intrinsic
+                { "finishing", player.Finishing }, // intrinsic
                 { "flair", player.Flair },
-                { "handling", player.Handling.current },
-                { "heading", player.Heading.current },
+                { "handling", player.Handling }, // intrinsic
+                { "heading", player.Heading }, // intrinsic
                 { "important_matches", player.ImportantMatches },
                 { "influence", player.Influence },
                 { "injury_proneness", player.InjuryProneness },
                 { "jumping", player.Jumping },
-                { "long_shots", player.LongShots.current },
+                { "long_shots", player.LongShots }, // intrinsic
                 { "loyalty", player.Loyalty },
-                { "marking", player.Marking.current },
+                { "marking", player.Marking }, // intrinsic
                 { "natural_fitness", player.NaturalFitness },
-                { "off_the_ball", player.OffTheBall.current },
-                { "one_on_ones", player.OneOnOnes.current },
+                { "off_the_ball", player.OffTheBall }, // intrinsic
+                { "one_on_ones", player.OneOnOnes }, // intrinsic
                 { "pace", player.Pace },
-                { "passing", player.Passing.current },
-                { "penalties", player.Penalties.current },
-                { "positioning", player.Positioning.current },
+                { "passing", player.Passing }, // intrinsic
+                { "penalties", player.Penalties }, // intrinsic
+                { "positioning", player.Positioning }, // intrinsic
                 { "pressure", player.Pressure },
                 { "professionalism", player.Professionalism },
-                { "reflexes", player.Reflexes.current },
+                { "reflexes", player.Reflexes }, // intrinsic
                 { "set_pieces", player.FreeKicks },
                 { "sportsmanship", player.Sportsmanship },
                 { "stamina", player.Stamina },
                 { "strength", player.Strength },
-                { "tackling", player.Tackling.current },
+                { "tackling", player.Tackling }, // intrinsic
                 { "teamwork", player.Teamwork },
                 { "technique", player.Technique },
                 { "temperament", player.Temperament },
-                { "throw_ins", player.ThrowIns.current },
+                { "throw_ins", player.ThrowIns }, // intrinsic
                 { "versatility", player.Versatility },
                 { "work_rate", player.WorkRate },
-                { "anticipation_potential", player.Anticipation.potential },
-                { "creativity_potential", player.Creativity.potential },
-                { "crossing_potential", player.Crossing.potential },
-                { "decisions_potential", player.Decisions.potential },
-                { "dribbling_potential", player.Dribbling.potential },
-                { "finishing_potential", player.Finishing.potential },
-                { "handling_potential", player.Handling.potential },
-                { "heading_potential", player.Heading.potential },
-                { "long_shots_potential", player.LongShots.potential },
-                { "marking_potential", player.Marking.potential },
-                { "off_the_ball_potential", player.OffTheBall.potential },
-                { "one_on_ones_potential", player.OneOnOnes.potential },
-                { "passing_potential", player.Passing.potential },
-                { "positioning_potential", player.Positioning.potential },
-                { "reflexes_potential", player.Reflexes.potential },
-                { "tacking_potential", player.Tackling.potential },
-                { "penalties_potential", player.Penalties.potential },
-                { "throw_ins_potential", player.ThrowIns.potential }
+                 // intrinsic
+                { "anticipation_potential", player.Anticipation },
+                { "creativity_potential", player.Creativity },
+                { "crossing_potential", player.Crossing },
+                { "decisions_potential", player.Decisions },
+                { "dribbling_potential", player.Dribbling },
+                { "finishing_potential", player.Finishing },
+                { "handling_potential", player.Handling },
+                { "heading_potential", player.Heading },
+                { "long_shots_potential", player.LongShots },
+                { "marking_potential", player.Marking },
+                { "off_the_ball_potential", player.OffTheBall },
+                { "one_on_ones_potential", player.OneOnOnes },
+                { "passing_potential", player.Passing },
+                { "positioning_potential", player.Positioning },
+                { "reflexes_potential", player.Reflexes },
+                { "tacking_potential", player.Tackling },
+                { "penalties_potential", player.Penalties },
+                { "throw_ins_potential", player.ThrowIns }
             };
 
             columnsAndValues.Add(singleFilePlayerData);

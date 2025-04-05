@@ -137,75 +137,75 @@ public class Player : Staff
 
     [DataPosition(30)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Anticipation { get; set; }
+    public byte Anticipation { get; set; }
 
     [DataPosition(67)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) Creativity { get; set; }
+    public byte Creativity { get; set; }
 
     [DataPosition(35)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) Crossing { get; set; }
+    public byte Crossing { get; set; }
 
     [DataPosition(36)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Decisions { get; set; }
+    public byte Decisions { get; set; }
 
     [DataPosition(38)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) Dribbling { get; set; }
+    public byte Dribbling { get; set; }
 
     [DataPosition(39)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) Finishing { get; set; }
+    public byte Finishing { get; set; }
 
     [DataPosition(42)]
     [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
-    public (byte current, byte potential) Handling { get; set; }
+    public byte Handling { get; set; }
 
     [DataPosition(43)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Heading { get; set; }
+    public byte Heading { get; set; }
 
     [DataPosition(49)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) LongShots { get; set; }
+    public byte LongShots { get; set; }
 
     [DataPosition(50)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) Marking { get; set; }
+    public byte Marking { get; set; }
 
     [DataPosition(51)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) OffTheBall { get; set; }
+    public byte OffTheBall { get; set; }
 
     [DataPosition(53)]
     [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
-    public (byte current, byte potential) OneOnOnes { get; set; }
+    public byte OneOnOnes { get; set; }
 
     [DataPosition(55)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Passing { get; set; }
+    public byte Passing { get; set; }
 
     [DataPosition(57)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Positioning { get; set; }
+    public byte Positioning { get; set; }
 
     [DataPosition(58)]
     [IntrinsicAttribute(IntrinsicType.GoalkeeperAttribute)]
-    public (byte current, byte potential) Reflexes { get; set; }
+    public byte Reflexes { get; set; }
 
     [DataPosition(62)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Tackling { get; set; }
+    public byte Tackling { get; set; }
 
     [DataPosition(56)]
     [IntrinsicAttribute(IntrinsicType.General)]
-    public (byte current, byte potential) Penalties { get; set; }
+    public byte Penalties { get; set; }
 
     [DataPosition(65)]
     [IntrinsicAttribute(IntrinsicType.FieldPlayerAttribute)]
-    public (byte current, byte potential) ThrowIns { get; set; }
+    public byte ThrowIns { get; set; }
 
     public override IEnumerable<string> Describe(BaseFileData data)
     {

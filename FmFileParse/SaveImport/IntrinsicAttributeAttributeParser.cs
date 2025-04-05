@@ -20,16 +20,16 @@ internal static class IntrinsicAttributeAttributeParser
         .Select(x => (x.Property, x.Attribute!))
         .ToArray();
 
-    // note: 'CurrentAbility', 'PotentialAbility' and 'GoalKeeperPos' must be known beforehand
-    internal static Player ComputeAndSetIntrinsicAttributes(this Player player)
+    internal static (byte, byte) ConvertAttributeIntrinsicValue(this Player player, string propertyName)
     {
-        foreach (var (property, attribute) in _intrinsicAttributes)
+        var propMatch = _intrinsicAttributes.FirstOrDefault(p => p.property.Name == propertyName);
+        if (propMatch.Equals(default))
         {
-            var intrinsicValue = (sbyte)(((byte, byte))property.GetValue(player)!).Item1;
-            var inGameValue = intrinsicValue.IntrisincToInGameAttributeValue(attribute.Type, player.CurrentAbility, player.PotentialAbility, player.GoalKeeperPos);
-            property.SetValue(player, inGameValue);
+            throw new ArgumentException("The specified property is not intrinsic.", nameof(propertyName));
         }
-        return player;
+
+        var intrinsicValue = (sbyte)(byte)propMatch.property.GetValue(player)!;
+        return intrinsicValue.IntrisincToInGameAttributeValue(propMatch.attribute.Type, player.CurrentAbility, player.PotentialAbility, player.GoalKeeperPos);
     }
 
     private static (byte, byte) IntrisincToInGameAttributeValue(

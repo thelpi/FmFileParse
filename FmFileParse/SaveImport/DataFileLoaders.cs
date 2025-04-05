@@ -60,7 +60,7 @@ internal static class DataFileLoaders
     {
         var fileFacts = DataFileType.Players.GetDataFileFact();
         return savegame.GetDataFileBytes(fileFacts.Type, fileFacts.DataSize)
-            .Select(x => new Player().SetDataPositionableProperties(x).ComputeAndSetIntrinsicAttributes())
+            .Select(x => new Player().SetDataPositionableProperties(x))
             .ToList();
     }
 
