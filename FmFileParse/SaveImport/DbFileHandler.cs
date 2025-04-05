@@ -40,6 +40,7 @@ internal static class DbFileHandler
         {
             var p = new Player();
             p.SetDataPositionableProperties(singleString);
+            p.ApplyDbFileCoefficients();
             if (staffList.TryGetValue(p.PlayerId, out var staff))
             {
                 p.PopulateStaffPropertiers(staff);

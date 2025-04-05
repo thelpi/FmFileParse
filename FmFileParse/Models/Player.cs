@@ -5,6 +5,8 @@ namespace FmFileParse.Models;
 
 public class Player : Staff
 {
+    private const int DbToSaveReputationCoefficient = 50;
+
     [DataPosition(0)]
     public int PlayerId { get; set; }
 
@@ -249,5 +251,14 @@ public class Player : Staff
         {
             property.SetValue(this, property.GetValue(staff));
         }
+    }
+
+    internal void ApplyDbFileCoefficients()
+    {
+        // in the DB file, reputation is [0 - 200]
+        // in the save file, reputation is [0 - 10000]
+        CurrentReputation *= DbToSaveReputationCoefficient;
+        WorldReputation *= DbToSaveReputationCoefficient;
+        HomeReputation *= DbToSaveReputationCoefficient;
     }
 }
