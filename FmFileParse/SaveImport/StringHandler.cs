@@ -35,11 +35,11 @@ internal static class StringHandler
             : new DateTime(year, 1, 1).AddDays(days);
     }
 
-    internal static List<string> ExtractFileData(string datFileTemplatePath, string fileName, int splitPosition, out int endPosition, int startAt = 0, bool stopAtIdBreak = false)
+    internal static List<string> ExtractFileData(string fileName, int splitPosition, out int endPosition, int startAt = 0, bool stopAtIdBreak = false)
     {
         endPosition = -1;
 
-        using var sr = new StreamReader(string.Format(datFileTemplatePath, fileName), Encoding);
+        using var sr = new StreamReader(string.Format("./SourceFiles/{0}.dat", fileName), Encoding);
 
         var data = sr.ReadToEnd()[startAt..];
 

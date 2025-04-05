@@ -20,7 +20,7 @@ var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, "*.sav");
 
 if (choice == 0)
 {
-    var dbFileData = DbFileHandler.GetDbFileData(Settings.DatFileTemplatePath);
+    var dbFileData = DbFileHandler.GetDbFileData();
 
     Func<Player, bool> criteria = new(x => x.CurrentAbility >= 180);
 
