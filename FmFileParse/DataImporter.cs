@@ -8,6 +8,8 @@ namespace FmFileParse;
 
 internal class DataImporter(Action<string> reportProgress)
 {
+    private const int SleepOnErrorMs = 10000;
+
     private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
 
     private static readonly string[] PlayerTableStringColumns =
@@ -98,7 +100,7 @@ internal class DataImporter(Action<string> reportProgress)
     ];
 
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
-    private readonly Dictionary<string, SaveGameData> _loadedSaveData = [];
+    private readonly Dictionary<string, BaseFileData> _loadedSaveData = [];
     private readonly Action<string> _reportProgress = reportProgress;
 
     public void ProceedToImport(string[] saveFilePaths)
@@ -249,7 +251,7 @@ internal class DataImporter(Action<string> reportProgress)
     private List<SaveIdMapper> ImportNations(string[] saveFilePaths,
         List<SaveIdMapper> confederationsMapping)
     {
-        var nations = ImportData(x => x.Nations,
+        return ImportData(x => x.Nations,
             saveFilePaths,
             "nations",
             new (string, DbType, Func<Nation, int, object>)[]
@@ -262,8 +264,6 @@ internal class DataImporter(Action<string> reportProgress)
                 ("confederation_id", DbType.Int32, (d, iFile) => GetMapDbId(confederationsMapping, iFile, d.ConfederationId).DbNullIf(-1)),
             },
             (d, iFile) => string.Concat(d.Name, ";", GetMapDbId(confederationsMapping, iFile, d.ConfederationId)));
-
-        return nations;
     }
 
     private List<SaveIdMapper> ImportClubCompetitions(string[] saveFilePaths,
@@ -433,6 +433,11 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var fileId in clubIdMap.SaveId.Keys)
             {
+                if (fileId == 0)
+                {
+                    continue;
+                }
+
                 var club = GetSaveGameDataFromCache(saveFilePaths[fileId])
                     .Clubs[clubIdMap.SaveId[fileId]];
 
@@ -445,13 +450,28 @@ internal class DataImporter(Action<string> reportProgress)
                 AddIfMatch(rivalClub3List, club.RivalClub3, fileId);
             }
 
+            var dbClubs = GetDbFileDataFromCache().Clubs;
+            var dbClub = dbClubs[clubIdMap.SaveId[0]];
+
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = MaxOrAvgOrNull(rivalClub1List, keysCount, true);
-            command.Parameters["@rival_club_2"].Value = MaxOrAvgOrNull(rivalClub2List, keysCount, true);
-            command.Parameters["@rival_club_3"].Value = MaxOrAvgOrNull(rivalClub3List, keysCount, true);
-            command.Parameters["@bank"].Value = MaxOrAvgOrNull(bankList, keysCount, false);
-            command.Parameters["@facilities"].Value = MaxOrAvgOrNull(facilitiesList, keysCount, false);
-            command.Parameters["@reputation"].Value = MaxOrAvgOrNull(reputationList, keysCount, false);
+            command.Parameters["@rival_club_1"].Value = dbClubs.TryGetValue(dbClub.RivalClub1, out var value1)
+                ? value1.Id
+                : MaxOrAvgOrNull(rivalClub1List, keysCount, true);
+            command.Parameters["@rival_club_2"].Value = dbClubs.TryGetValue(dbClub.RivalClub2, out var value2)
+                ? value2.Id
+                : MaxOrAvgOrNull(rivalClub2List, keysCount, true);
+            command.Parameters["@rival_club_3"].Value = dbClubs.TryGetValue(dbClub.RivalClub3, out var value3)
+                ? value3.Id
+                : MaxOrAvgOrNull(rivalClub3List, keysCount, true);
+            command.Parameters["@bank"].Value = dbClub.Bank == 0
+                ? MaxOrAvgOrNull(bankList, keysCount, false)
+                : dbClub.Bank;
+            command.Parameters["@facilities"].Value = dbClub.Facilities <= 0
+                ? MaxOrAvgOrNull(facilitiesList, keysCount, false)
+                : dbClub.Facilities;
+            command.Parameters["@reputation"].Value = dbClub.Reputation <= 0
+                ? MaxOrAvgOrNull(reputationList, keysCount, false)
+                : dbClub.Reputation;
             command.ExecuteNonQuery();
 
             clubCount++;
@@ -810,7 +830,7 @@ internal class DataImporter(Action<string> reportProgress)
     #region reusable
 
     private List<SaveIdMapper> ImportData<T>(
-        Func<SaveGameData, Dictionary<int, T>> sourceDataGet,
+        Func<BaseFileData, Dictionary<int, T>> sourceDataGet,
         string[] saveFilePaths,
         string tableName,
         (string pName, DbType pType, Func<T, int, object> pValue)[] parameters,
@@ -831,11 +851,18 @@ internal class DataImporter(Action<string> reportProgress)
         }
         command.Prepare();
 
-        var iFile = 0;
+        var dataList = new List<BaseFileData>(saveFilePaths.Length + 1)
+        {
+            GetDbFileDataFromCache()
+        };
         foreach (var saveFilePath in saveFilePaths)
         {
-            var data = GetSaveGameDataFromCache(saveFilePath);
+            dataList.Add(GetSaveGameDataFromCache(saveFilePath));
+        }
 
+        var iFile = 0;
+        foreach (var data in dataList)
+        {
             var sourceData = sourceDataGet(data);
 
             foreach (var key in sourceData.Keys)
@@ -845,6 +872,13 @@ internal class DataImporter(Action<string> reportProgress)
                 var match = mapping.FirstOrDefault(x => x.Key.Equals(functionnalKey, StringComparison.InvariantCultureIgnoreCase));
                 if (match.Equals(default(SaveIdMapper)))
                 {
+                    if (iFile > 0)
+                    {
+                        _reportProgress($"[ERROR] The key '{functionnalKey}' for data type '{tableName}' does not exist in DB file (currently in save file: {iFile}).");
+                        Thread.Sleep(SleepOnErrorMs);
+                        continue;
+                    }
+
                     foreach (var (pName, _, pValue) in parameters)
                     {
                         command.Parameters[$"@{pName}"].Value = pValue(sourceData[key], iFile);
@@ -875,7 +909,18 @@ internal class DataImporter(Action<string> reportProgress)
         return mapping;
     }
 
-    private SaveGameData GetSaveGameDataFromCache(string saveFilePath)
+    private BaseFileData GetDbFileDataFromCache()
+    {
+        if (!_loadedSaveData.TryGetValue("db_save_file", out var data))
+        {
+            data = DbFileHandler.GetDbFileData();
+            _loadedSaveData.Add("db_save_file", data);
+        }
+
+        return data;
+    }
+
+    private BaseFileData GetSaveGameDataFromCache(string saveFilePath)
     {
         if (!_loadedSaveData.TryGetValue(saveFilePath, out var data))
         {
