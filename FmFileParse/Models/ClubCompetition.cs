@@ -25,21 +25,9 @@ public class ClubCompetition : BaseData
         yield return $"Name: {Name} - Acronym: {Acronym}";
         yield return $"LongName: {LongName} - Reputation: {Reputation}";
 
-        yield return string.Empty;
-        yield return "---- Nation (from club competition) details ----";
-        data.Nations.TryGetValue(NationId, out var nation);
-        if (nation is not null)
+        foreach (var row in SubDescribe(data, NationId, x => x.Nations, "club competition"))
         {
-            foreach (var row in nation.Describe(data))
-            {
-                yield return row;
-            }
-        }
-        else
-        {
-            yield return NationId >= 0
-                ? $"No nation with id {NationId} found!"
-                : "Nation is not set on the club competition.";
+            yield return row;
         }
     }
 }

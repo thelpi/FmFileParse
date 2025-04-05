@@ -227,55 +227,19 @@ public class Player : Staff
         yield return $"DefensiveMidfielderPos: {DefensiveMidfielderPos} - MidfielderPos: {MidfielderPos} - AttackingMidfielderPos: {AttackingMidfielderPos}";
         yield return $"StrikerPos: {StrikerPos} - FreeRolePos: {FreeRolePos} - WingBackPos: {WingBackPos}";
 
-        yield return string.Empty;
-        yield return "---- Club (from player) details ----";
-        data.Clubs.TryGetValue(ClubId, out var club);
-        if (club is not null)
+        foreach (var row in SubDescribe(data, ClubId, x => x.Clubs, "player"))
         {
-            foreach (var row in club.Describe(data))
-            {
-                yield return row;
-            }
-        }
-        else
-        {
-            yield return ClubId >= 0
-                ? $"No club with id {ClubId} found!"
-                : "Club is not set on the player.";
+            yield return row;
         }
 
-        yield return string.Empty;
-        yield return "---- Nation (from club) details ----";
-        data.Nations.TryGetValue(NationId, out var nation);
-        if (nation is not null)
+        foreach (var row in SubDescribe(data, NationId, x => x.Nations, "player"))
         {
-            foreach (var row in nation.Describe(data))
-            {
-                yield return row;
-            }
-        }
-        else
-        {
-            yield return NationId >= 0
-                ? $"No nation with id {NationId} found!"
-                : "Nation is not set on the club.";
+            yield return row;
         }
 
-        yield return string.Empty;
-        yield return "---- Nation (from club) details ----";
-        data.Nations.TryGetValue(SecondaryNationId, out var secondaryNation);
-        if (secondaryNation is not null)
+        foreach (var row in SubDescribe(data, SecondaryNationId, x => x.Nations, "player"))
         {
-            foreach (var row in secondaryNation.Describe(data))
-            {
-                yield return row;
-            }
-        }
-        else
-        {
-            yield return SecondaryNationId >= 0
-                ? $"No nation with id {SecondaryNationId} found!"
-                : "Nation is not set on the club.";
+            yield return row;
         }
     }
 

@@ -33,21 +33,9 @@ public class Nation : BaseData
         yield return $"Reputation: {Reputation} - LeagueStandard: {LeagueStandard}";
         yield return $"IsEu: {IsEu}";
 
-        yield return string.Empty;
-        yield return "---- Confederation (from country) details ----";
-        data.Confederations.TryGetValue(ConfederationId, out var confederation);
-        if (confederation is not null)
+        foreach (var row in SubDescribe(data, ConfederationId, x => x.Confederations, "nation"))
         {
-            foreach (var row in confederation.Describe(data))
-            {
-                yield return row;
-            }
-        }
-        else
-        {
-            yield return ConfederationId >= 0
-                ? $"No confederation with id {ConfederationId} found!"
-                : "Confederation is not set on the country.";
+            yield return row;
         }
     }
 }
