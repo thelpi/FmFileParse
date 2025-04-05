@@ -11,7 +11,7 @@ internal static class DbFileHandler
         {
             FirstNames = GetStringData("first_names", 60),
             ClubCompetitions = GetData<ClubCompetition>("club_comp", 107),
-            Clubs = GetData<Club>("club", 581),
+            Clubs = GetData<Club>("club", 581).ManageDuplicateClubs(),
             CommonNames = GetStringData("common_names", 60),
             Confederations = GetData<Confederation>("continent", 198),
             LastNames = GetStringData("second_names", 60),

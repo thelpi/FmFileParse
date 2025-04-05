@@ -115,14 +115,14 @@ internal static class DataFileLoaders
         return dic;
     }
 
-    private static Dictionary<int, Club> ManageDuplicateClubs(this Dictionary<int, Club> clubs)
+    // also used by 'DbFileHandler'
+    internal static Dictionary<int, Club> ManageDuplicateClubs(this Dictionary<int, Club> clubs)
     {
-        var clubsGroups = clubs.Values.GetMaxOccurence(c => $"{c.LongName};{c.NationId};{c.DivisionId};");
-
-        if (clubsGroups.Count() > 1)
+        var clubsGroups = clubs.Values.GroupBy(c => $"{c.LongName};{c.NationId};{c.DivisionId};").Where(cg => cg.Count() > 1).ToList();
+        foreach (var clubsGroup in clubsGroups)
         {
             var i = 1;
-            foreach (var club in clubsGroups.OrderByDescending(c => c.Reputation))
+            foreach (var club in clubsGroup.OrderByDescending(c => c.Reputation))
             {
                 if (i > 1)
                 {
