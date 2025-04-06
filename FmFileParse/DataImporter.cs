@@ -8,8 +8,6 @@ namespace FmFileParse;
 
 internal class DataImporter(Action<string> reportProgress)
 {
-    private const int SleepOnErrorMs = 10000;
-
     private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
 
     private static readonly string[] PlayerTableStringColumns =
@@ -245,7 +243,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("continent_name", DbType.String, (d, _) => d.ContinentName),
                 ("strength", DbType.Int16, (d, _) => d.Strength * 100)
             },
-            (d, _) => d.Name);
+            (d, _) => d.Acronym);
     }
 
     private List<SaveIdMapper> ImportNations(string[] saveFilePaths,
@@ -298,7 +296,7 @@ internal class DataImporter(Action<string> reportProgress)
                 ("division_id", DbType.Int32, (d, iFile) => GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId).DbNullIf(-1))
             },
             // note: the key here should be the same as the one used in 'DataFileLoaders.ManageDuplicateClubs'
-            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId), ";", GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId)));
+            (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
     }
 
     private void UpdateStaffOnClubs(List<SaveIdMapper> playersMapping, string[] saveFilePaths)
@@ -438,7 +436,7 @@ internal class DataImporter(Action<string> reportProgress)
                     continue;
                 }
 
-                var club = GetSaveGameDataFromCache(saveFilePaths[fileId])
+                var club = GetSaveGameDataFromCache(saveFilePaths[fileId - 1])
                     .Clubs[clubIdMap.SaveId[fileId]];
 
                 reputationList.Add(club.Reputation);
@@ -874,9 +872,7 @@ internal class DataImporter(Action<string> reportProgress)
                 {
                     if (iFile > 0)
                     {
-                        _reportProgress($"[ERROR] The key '{functionnalKey}' for data type '{tableName}' does not exist in DB file (currently in save file: {iFile}).");
-                        Thread.Sleep(SleepOnErrorMs);
-                        continue;
+                        throw new InvalidOperationException($"The key '{functionnalKey}' only exists in save files (file: '{saveFilePaths[iFile - 1]}').");
                     }
 
                     foreach (var (pName, _, pValue) in parameters)

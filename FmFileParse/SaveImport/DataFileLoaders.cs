@@ -118,7 +118,7 @@ internal static class DataFileLoaders
     // also used by 'DbFileHandler'
     internal static Dictionary<int, Club> ManageDuplicateClubs(this Dictionary<int, Club> clubs)
     {
-        var clubsGroups = clubs.Values.GroupBy(c => $"{c.LongName};{c.NationId};{c.DivisionId};").Where(cg => cg.Count() > 1).ToList();
+        var clubsGroups = clubs.Values.GroupBy(c => $"{c.LongName};{c.NationId}").Where(cg => cg.Count() > 1).ToList();
         foreach (var clubsGroup in clubsGroups)
         {
             var i = 1;
