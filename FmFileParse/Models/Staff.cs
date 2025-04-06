@@ -116,12 +116,22 @@ public class Staff : BaseData
     [DataPosition(141, FileType = PositionAttributeFileTypes.DbFileOnly)]
     public int DislikeStaff3 { get; set; }
 
+    public string FirstName { get; set; } = string.Empty;
+
+    public string LastName { get; set; } = string.Empty;
+
+    public string CommonName { get; set; } = string.Empty;
+
     // only nullable for db file
     public DateTime? ComputedDateOfBirth => DateOfBirth.Year > 1900
         ? DateOfBirth
         : (YearOfBirth > 1900
             ? new DateTime(YearOfBirth, 7, 1)
             : null);
+
+    public string Fullname => !string.IsNullOrWhiteSpace(CommonName)
+        ? CommonName
+        : string.Concat(LastName, ", ", FirstName);
 
     public override IEnumerable<string> Describe(BaseFileData data) => [];
 }

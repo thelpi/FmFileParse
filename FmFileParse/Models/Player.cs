@@ -209,15 +209,7 @@ public class Player : Staff
 
     public override IEnumerable<string> Describe(BaseFileData data)
     {
-        data.FirstNames.TryGetValue(FirstNameId, out var pFirstName);
-        data.LastNames.TryGetValue(LastNameId, out var pLastName);
-        data.CommonNames.TryGetValue(CommonNameId, out var pCommonName);
-
-        var fullName = !string.IsNullOrWhiteSpace(pCommonName)
-            ? pCommonName
-            : string.Concat(pLastName, pFirstName);
-
-        yield return $"FullName: {fullName} - DateOfBirth: {ComputedDateOfBirth}";
+        yield return $"FullName: {Fullname} - DateOfBirth: {ComputedDateOfBirth}";
         yield return $"CurrentAbility: {CurrentAbility} - PotentialAbility: {PotentialAbility}";
         yield return $"RightFoot: {RightFoot} - LeftFoot: {LeftFoot}";
         yield return $"CurrentReputation: {CurrentReputation} - WorldReputation: {WorldReputation} - CurrentReputation: {CurrentReputation}";

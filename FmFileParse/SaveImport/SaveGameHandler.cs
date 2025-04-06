@@ -32,16 +32,17 @@ public static class SaveGameHandler
 
         savegame.LoadGameData();
 
+        var firstNames = savegame.GetDataFileStringsDictionary(DataFileType.FirstNames);
+        var lastNames = savegame.GetDataFileStringsDictionary(DataFileType.LastNames);
+        var commonNames = savegame.GetDataFileStringsDictionary(DataFileType.CommonNames);
+
         return new SaveGameData
         {
             GameDate = savegame.GameDate,
             Confederations = savegame.GetDataFileConfederationsDictionary(),
-            FirstNames = savegame.GetDataFileStringsDictionary(DataFileType.FirstNames),
-            LastNames = savegame.GetDataFileStringsDictionary(DataFileType.LastNames),
-            CommonNames = savegame.GetDataFileStringsDictionary(DataFileType.CommonNames),
             Nations = savegame.GetDataFileNationsDictionary(),
             Clubs = savegame.GetDataFileClubsDictionary(),
-            Players = savegame.GetDataFilePlayersList(),
+            Players = savegame.GetDataFilePlayersList(firstNames, lastNames, commonNames),
             ClubCompetitions = savegame.GetDataFileClubCompetitionsDictionary()
         };
     }

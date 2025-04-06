@@ -33,12 +33,24 @@ internal static class DataFileLoaders
         return fileContents;
     }
 
-    public static List<Player> GetDataFilePlayersList(this SaveGameFile savegame)
+    public static List<Player> GetDataFilePlayersList(this SaveGameFile savegame,
+        Dictionary<int, string> firstNames,
+        Dictionary<int, string> lastNames,
+        Dictionary<int, string> commonNames)
     {
-        return ConstructSearchablePlayers(
+        var players = ConstructSearchablePlayers(
             savegame.GetDataFileStaffDictionary(out _),
             savegame.GetDataFilePlayersData(),
             savegame.GetDataFileContractsDictionary()).ToList();
+
+        foreach (var p in players)
+        {
+            p.FirstName = firstNames[p.FirstNameId].Sanitize();
+            p.LastName = lastNames[p.LastNameId].Sanitize();
+            p.CommonName = commonNames[p.CommonNameId].Sanitize();
+        }
+
+        return players;
     }
 
     private static Dictionary<int, Staff> GetDataFileStaffDictionary(this SaveGameFile savegame, out List<Staff> duplicateStaff)

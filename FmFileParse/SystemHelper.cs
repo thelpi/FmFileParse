@@ -3,6 +3,7 @@
 internal static class SystemHelper
 {
     private static readonly int[] Months30Days = [4, 6, 9, 11];
+    private static readonly string[] NameNewLineSeparators = ["\r\n", "\r", "\n"];
 
     /// <summary>
     /// Computes the average date of a list of dates.
@@ -51,4 +52,13 @@ internal static class SystemHelper
         this object? value,
         params object[] otherDbNullValues)
         => value is null || otherDbNullValues.Contains(value) ? DBNull.Value : value;
+
+    /// <summary>
+    /// Forces empty instead of null, trimmes, and extracts single part (the last one) when string has carriage return / new line.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static string Sanitize(this string value) => value is null
+        ? string.Empty
+        : value.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim();
 }

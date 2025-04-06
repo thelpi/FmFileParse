@@ -12,20 +12,24 @@ internal static class DbFileHandler
         // coach data (we don't care about)
         _ = StringHandler.ExtractFileData("staff", 68, out var coachEndPosition, startAt: staffEndPosition, stopAtIdBreak: true);
 
+        var firstNames = GetStringData("first_names", 60);
+        var lastNames = GetStringData("second_names", 60);
+        var commonNames = GetStringData("common_names", 60);
+
         return new DbFileData
         {
-            FirstNames = GetStringData("first_names", 60),
             ClubCompetitions = GetData<ClubCompetition>("club_comp", 107),
             Clubs = GetData<Club>("club", 581).ManageDuplicateClubs(),
-            CommonNames = GetStringData("common_names", 60),
             Confederations = GetData<Confederation>("continent", 198),
-            LastNames = GetStringData("second_names", 60),
             Nations = GetData<Nation>("nation", 290),
-            Players = GetPlayersList(staffList, staffEndPosition + coachEndPosition)
+            Players = GetPlayersList(staffList, staffEndPosition + coachEndPosition, firstNames, lastNames, commonNames)
         };
     }
 
-    private static List<Player> GetPlayersList(Dictionary<int, Staff> staffList, int startPosition)
+    private static List<Player> GetPlayersList(Dictionary<int, Staff> staffList, int startPosition,
+        Dictionary<int, string> firstNames,
+        Dictionary<int, string> lastNames,
+        Dictionary<int, string> commonNames)
     {
         var stringData = StringHandler.ExtractFileData("staff", 70, out _, startAt: startPosition);
 
@@ -45,12 +49,15 @@ internal static class DbFileHandler
                         ContractEndDate = staff.DateContractEnd
                     };
                 }
+                p.FirstName = firstNames[p.FirstNameId].Sanitize();
+                p.LastName = lastNames[p.LastNameId].Sanitize();
+                p.CommonName = commonNames[p.CommonNameId].Sanitize();
                 players.Add(p);
             }
         }
 
         var duplicatePlayersGroups = players
-            .GroupBy(x => (x.CommonNameId, x.FirstNameId, x.LastNameId, x.ClubId, x.ComputedDateOfBirth))
+            .GroupBy(x => (x.CommonName, x.FirstName, x.LastName, x.ClubId, x.ComputedDateOfBirth))
             .Where(x => x.Count() > 1)
             .ToList();
 
