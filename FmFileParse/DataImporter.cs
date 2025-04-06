@@ -71,7 +71,6 @@ internal class DataImporter(Action<string> reportProgress)
         ("club_competitions", true),
         ("nations", true),
         ("confederations", true),
-        ("players_merge_statistics", false),
         ("save_files_references", false)
     ];
 
@@ -93,8 +92,7 @@ internal class DataImporter(Action<string> reportProgress)
         ("players", "nation_id", "nations", "id"),
         ("players", "secondary_nation_id", "nations", "id"),
         ("players", "club_id", "clubs", "id"),
-        ("players", "future_club_id", "clubs", "id"),
-        ("players_merge_statistics", "player_id", "players", "id"),
+        ("players", "future_club_id", "clubs", "id")
     ];
 
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
@@ -163,9 +161,6 @@ internal class DataImporter(Action<string> reportProgress)
             command.ExecuteNonQuerySecured();
         }
 
-        command.CommandText = "ALTER TABLE players_merge_statistics DROP PRIMARY KEY";
-        command.ExecuteNonQuerySecured();
-
         command.CommandText = "ALTER TABLE save_files_references DROP PRIMARY KEY";
         command.ExecuteNonQuerySecured();
     }
@@ -177,10 +172,6 @@ internal class DataImporter(Action<string> reportProgress)
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-
-        command.CommandText = "ALTER TABLE players_merge_statistics " +
-            "ADD PRIMARY KEY(player_id, field)";
-        command.ExecuteNonQuery();
 
         command.CommandText = "ALTER TABLE save_files_references " +
             "ADD PRIMARY KEY(data_type, data_id, file_id)";
@@ -519,6 +510,122 @@ internal class DataImporter(Action<string> reportProgress)
         }
         command.Prepare();
 
+        var collectedDbIdMap = new List<SaveIdMapper>(20000);
+
+        var dbData = GetDbFileDataFromCache();
+
+        foreach (var p in dbData.Players)
+        {
+            var firstName = GetNameValue(p.FirstNameId, dbData.FirstNames);
+            var lastName = GetNameValue(p.LastNameId, dbData.LastNames);
+            var commmonName = GetNameValue(p.CommonNameId, dbData.CommonNames);
+            var clubId = GetMapDbId(clubsMapping, 0, p.ClubId);
+
+            var playersFromSaveFiles = new Dictionary<int, Player>(saveFilePaths.Length);
+            for (var fileId = 1; fileId <= saveFilePaths.Length; fileId++)
+            {
+                var saveData = GetSaveGameDataFromCache(saveFilePaths[fileId - 1]);
+
+                var saveP = saveData.Players.FirstOrDefault(x =>
+                {
+                    var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                    var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                    var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+                    var saveClubId = GetMapDbId(clubsMapping, fileId, x.ClubId);
+
+                    return saveFirstName == firstName
+                        && saveLastName == lastName
+                        && saveCommmonName == commmonName
+                        && saveClubId == clubId
+                        && x.DateOfBirth == p.DateOfBirth;
+                });
+
+                if (saveP == null)
+                {
+                    saveP = saveData.Players.SingleOrDefault(x =>
+                    {
+                        var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                        var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                        var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+                        var saveClubId = GetMapDbId(clubsMapping, fileId, x.ClubId);
+
+                        return saveFirstName == firstName
+                            && saveLastName == lastName
+                            && saveCommmonName == commmonName
+                            && saveClubId == clubId
+                            && x.DateOfBirth.Year == p.YearOfBirth;
+                    });
+                }
+
+                if (saveP == null)
+                {
+                    saveP = saveData.Players.SingleOrDefault(x =>
+                    {
+                        var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                        var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                        var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+                        var saveClubId = GetMapDbId(clubsMapping, fileId, x.ClubId);
+
+                        return saveFirstName == firstName
+                            && saveLastName == lastName
+                            && saveCommmonName == commmonName
+                            && saveClubId == clubId;
+                    });
+                }
+
+                if (saveP == null)
+                {
+                    saveP = saveData.Players.SingleOrDefault(x =>
+                    {
+                        var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                        var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                        var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+
+                        return saveFirstName == firstName
+                            && saveLastName == lastName
+                            && saveCommmonName == commmonName
+                            && x.DateOfBirth == p.DateOfBirth;
+                    });
+                }
+
+                if (saveP == null)
+                {
+                    saveP = saveData.Players.SingleOrDefault(x =>
+                    {
+                        var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                        var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                        var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+
+                        return saveFirstName == firstName
+                            && saveLastName == lastName
+                            && saveCommmonName == commmonName
+                            && x.DateOfBirth.Year == p.YearOfBirth;
+                    });
+                }
+
+                if (saveP == null)
+                {
+                    saveP = saveData.Players.SingleOrDefault(x =>
+                    {
+                        var saveFirstName = GetNameValue(x.FirstNameId, saveData.FirstNames);
+                        var saveLastName = GetNameValue(x.LastNameId, saveData.LastNames);
+                        var saveCommmonName = GetNameValue(x.CommonNameId, saveData.CommonNames);
+
+                        return saveFirstName == firstName
+                            && saveLastName == lastName
+                            && saveCommmonName == commmonName;
+                    });
+                }
+
+                if (saveP != null)
+                {
+                    playersFromSaveFiles.Add(fileId, saveP);
+                }
+            }
+        }
+
+        return collectedDbIdMap;
+        /*
         var collectedMergeStats = new Dictionary<int, List<(string field, int occurences, MergeType mergeType)>>(520);
         var collectedDbIdMap = new List<SaveIdMapper>(12000);
 
@@ -598,19 +705,9 @@ internal class DataImporter(Action<string> reportProgress)
                     collectedDbIdMap.Add(pMap.Value);
                 }
             }
-
-            if (Settings.InsertStatistics && collectedMergeStats.Count >= 500)
-            {
-                BulkInsertPlayerMergeStatistics(collectedMergeStats);
-            }
         }
 
-        if (Settings.InsertStatistics && collectedMergeStats.Count > 0)
-        {
-            BulkInsertPlayerMergeStatistics(collectedMergeStats);
-        }
-
-        return collectedDbIdMap;
+        return collectedDbIdMap;*/
     }
 
     private SaveIdMapper? InsertMergedPlayer(
@@ -823,31 +920,6 @@ internal class DataImporter(Action<string> reportProgress)
                 : (averageFunc is not null && !groups.Any(x => x.Value == DBNull.Value)
                     ? (averageFunc(allValues), MergeType.Average, groups.Count)
                     : (groups[0].Value, MergeType.ModeBelowThreshold, groups.Count));
-    }
-
-    private void BulkInsertPlayerMergeStatistics(
-        Dictionary<int, List<(string field, int occurences, MergeType mergeType)>> collectedMergeInfo)
-    {
-        var informationCopy = collectedMergeInfo.ToDictionary(x => x.Key, x => x.Value);
-
-        collectedMergeInfo.Clear();
-
-        Task.Run(() =>
-        {
-            var rowsToInsert = new List<string>(informationCopy.Count * 100);
-            foreach (var playerId in informationCopy.Keys)
-            {
-                foreach (var (field, occurences, mergeType) in informationCopy[playerId])
-                {
-                    rowsToInsert.Add($"({playerId}, '{MySqlHelper.EscapeString(field)}', {occurences}, '{mergeType}')");
-                }
-            }
-            using var connection = _getConnection();
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = $"INSERT INTO players_merge_statistics (player_id, field, occurences, merge_type) VALUES {string.Join(", ", rowsToInsert)}";
-            command.ExecuteNonQuery();
-        });
     }
 
     #region reusable
