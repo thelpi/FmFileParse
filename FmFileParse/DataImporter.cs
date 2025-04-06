@@ -119,8 +119,8 @@ internal class DataImporter(Action<string> reportProgress)
         SetSaveFileReferences(clubs, nameof(Club));
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
+        UpdateStaffOnClubs(clubs, players, saveFilePaths);
         SetSaveFileReferences(players, nameof(Player));
-        UpdateStaffOnClubs(players, saveFilePaths);
 
         CreateIndexesAndForeignKeys();
     }
@@ -299,76 +299,101 @@ internal class DataImporter(Action<string> reportProgress)
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
     }
 
-    private void UpdateStaffOnClubs(List<SaveIdMapper> playersMapping, string[] saveFilePaths)
+    private void UpdateStaffOnClubs(List<SaveIdMapper> clubsMapping, List<SaveIdMapper> playersMapping, string[] saveFilePaths)
     {
         _reportProgress("Updates club's staff information...");
-
-        using var wConnection = _getConnection();
-        wConnection.Open();
-        using var wCommand = wConnection.CreateCommand();
-        wCommand.CommandText = "UPDATE clubs " +
-            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
-            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
-            "WHERE id = @id";
-        wCommand.SetParameter("liked_staff_1", DbType.Int32);
-        wCommand.SetParameter("liked_staff_2", DbType.Int32);
-        wCommand.SetParameter("liked_staff_3", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_1", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_2", DbType.Int32);
-        wCommand.SetParameter("disliked_staff_3", DbType.Int32);
-        wCommand.SetParameter("id", DbType.Int32);
-        wCommand.Prepare();
-
-        var keysByPlayer = new Dictionary<int, List<int[]>>(playersMapping.Count);
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM save_files_references WHERE data_type = @data_type ORDER BY data_id, file_id";
-        command.SetParameter("@data_type", DbType.String, nameof(Club));
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
+        command.CommandText = "UPDATE clubs " +
+            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
+            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3 " +
+            "WHERE id = @id";
+        command.SetParameter("liked_staff_1", DbType.Int32);
+        command.SetParameter("liked_staff_2", DbType.Int32);
+        command.SetParameter("liked_staff_3", DbType.Int32);
+        command.SetParameter("disliked_staff_1", DbType.Int32);
+        command.SetParameter("disliked_staff_2", DbType.Int32);
+        command.SetParameter("disliked_staff_3", DbType.Int32);
+        command.SetParameter("id", DbType.Int32);
+        command.Prepare();
+
+        // TODO: it's sub-optimal, mapping logic on save files is not required if db file has a proper staff id
+
+        var keysByPlayer = new Dictionary<int, List<int[]>>(clubsMapping.Count);
+
+        foreach (var cMap in clubsMapping)
         {
-            var fileId = reader.GetInt32("file_id");
-            var playerDbId = reader.GetInt32("data_id");
-            var playerSaveId = reader.GetInt32("save_id");
-
-            if (!keysByPlayer.TryGetValue(playerDbId, out var keys))
+            foreach (var fileId in cMap.SaveId.Keys)
             {
-                keys = new List<int[]>(saveFilePaths.Length);
-                keysByPlayer.Add(playerDbId, keys);
+                if (fileId == 0)
+                {
+                    continue;
+                }
+
+                if (!keysByPlayer.TryGetValue(cMap.DbId, out var keys))
+                {
+                    keys = new List<int[]>(saveFilePaths.Length + 1);
+                    keysByPlayer.Add(cMap.DbId, keys);
+                }
+
+                var club = GetSaveGameDataFromCache(saveFilePaths[fileId - 1]).Clubs[cMap.SaveId[fileId]];
+
+                keys.Add(
+                [
+                    GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff1),
+                    GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff2),
+                    GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff3),
+                    GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff1),
+                    GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff2),
+                    GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff3),
+                ]);
             }
-
-            var club = GetSaveGameDataFromCache(saveFilePaths[fileId]).Clubs[playerSaveId];
-
-            keys.Add(
-            [
-                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff1),
-                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff2),
-                GetMapDbIdIfAny(playersMapping, fileId, club.LikedStaff3),
-                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff1),
-                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff2),
-                GetMapDbIdIfAny(playersMapping, fileId, club.DislikedStaff3),
-            ]);
         }
+
+        var dbPropGetter = new List<Func<int, int>>
+        {
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff1,
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff2,
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff3,
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff1,
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff2,
+            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff3,
+        };
 
         foreach (var pid in keysByPlayer.Keys)
         {
             var maxxedOccurences = new int[6];
             for (var i = 0; i < 6; i++)
-                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i]).Key;
-
-            if (maxxedOccurences.Any(v => v != -1))
             {
-                wCommand.Parameters["@liked_staff_1"].Value = maxxedOccurences[0].DbNullIf(-1);
-                wCommand.Parameters["@liked_staff_2"].Value = maxxedOccurences[1].DbNullIf(-1);
-                wCommand.Parameters["@liked_staff_3"].Value = maxxedOccurences[2].DbNullIf(-1);
-                wCommand.Parameters["@disliked_staff_1"].Value = maxxedOccurences[3].DbNullIf(-1);
-                wCommand.Parameters["@disliked_staff_2"].Value = maxxedOccurences[4].DbNullIf(-1);
-                wCommand.Parameters["@disliked_staff_3"].Value = maxxedOccurences[5].DbNullIf(-1);
-                wCommand.Parameters["@id"].Value = pid;
-                wCommand.ExecuteNonQuery();
+                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i]).Key;
             }
+
+            var dbStaff = dbPropGetter.Select(x => -1).ToArray();
+            if (clubsMapping.First(x => x.DbId == pid).SaveId.TryGetValue(0, out var dbFileId))
+            {
+                for (var i = 0; i < dbPropGetter.Count; i++)
+                {
+                    var localStaffId = GetMapDbId(playersMapping, 0, dbPropGetter[i](dbFileId));
+                    if (localStaffId >= 0)
+                    {
+                        dbStaff[i] = localStaffId;
+                    }
+                }
+            }
+
+            object GetFinalStaffDbId(int index)
+                => dbStaff[0] >= 0 ? dbStaff[0] : maxxedOccurences[0].DbNullIf(-1);
+
+            command.Parameters["@liked_staff_1"].Value = GetFinalStaffDbId(0);
+            command.Parameters["@liked_staff_2"].Value = GetFinalStaffDbId(1);
+            command.Parameters["@liked_staff_3"].Value = GetFinalStaffDbId(2);
+            command.Parameters["@disliked_staff_1"].Value = GetFinalStaffDbId(3);
+            command.Parameters["@disliked_staff_2"].Value = GetFinalStaffDbId(4);
+            command.Parameters["@disliked_staff_3"].Value = GetFinalStaffDbId(5);
+            command.Parameters["@id"].Value = pid;
+            command.ExecuteNonQuery();
         }
     }
 
