@@ -116,5 +116,12 @@ public class Staff : BaseData
     [DataPosition(141, FileType = PositionAttributeFileTypes.DbFileOnly)]
     public int DislikeStaff3 { get; set; }
 
+    // only nullable for db file
+    public DateTime? ComputedDateOfBirth => DateOfBirth.Year > 1900
+        ? DateOfBirth
+        : (YearOfBirth > 1900
+            ? new DateTime(YearOfBirth, 7, 1)
+            : null);
+
     public override IEnumerable<string> Describe(BaseFileData data) => [];
 }

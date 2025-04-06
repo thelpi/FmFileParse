@@ -217,7 +217,7 @@ public class Player : Staff
             ? pCommonName
             : string.Concat(pLastName, pFirstName);
 
-        yield return $"FullName: {fullName} - DateOfBirth: {DateOfBirth}";
+        yield return $"FullName: {fullName} - DateOfBirth: {ComputedDateOfBirth}";
         yield return $"CurrentAbility: {CurrentAbility} - PotentialAbility: {PotentialAbility}";
         yield return $"RightFoot: {RightFoot} - LeftFoot: {LeftFoot}";
         yield return $"CurrentReputation: {CurrentReputation} - WorldReputation: {WorldReputation} - CurrentReputation: {CurrentReputation}";

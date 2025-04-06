@@ -558,9 +558,9 @@ internal class DataImporter(Action<string> reportProgress)
             var playersByName = allPlayers[playerKey].SelectMany(x => x.Value).ToList();
             if (allPlayers[playerKey].Any(x => x.Value.Count > 1))
             {
-                foreach (var dob in playersByName.Select(x => x.player.DateOfBirth).Distinct())
+                foreach (var dob in playersByName.Select(x => x.player.ComputedDateOfBirth).Distinct())
                 {
-                    var playersByDob = playersByName.Where(x => x.player.DateOfBirth == dob).ToList();
+                    var playersByDob = playersByName.Where(x => x.player.ComputedDateOfBirth == dob).ToList();
                     if (playersByDob.GroupBy(x => x.fileId).Any(x => x.Count() > 1))
                     {
                         foreach (var club in playersByDob.Select(x => GetMapDbId(clubsMapping, x.fileId, x.player.ClubId)).Distinct())
@@ -639,7 +639,7 @@ internal class DataImporter(Action<string> reportProgress)
                 { "first_name", GetNameValue(player.FirstNameId, data.FirstNames).DbNullIf(string.Empty) },
                 { "last_name", GetNameValue(player.LastNameId, data.LastNames).DbNullIf(string.Empty) },
                 { "common_name", GetNameValue(player.CommonNameId, data.CommonNames).DbNullIf(string.Empty) },
-                { "date_of_birth", player.DateOfBirth },
+                { "date_of_birth", player.ComputedDateOfBirth.DbNullIf() },
                 { "nation_id", GetMapDbId(nationsMapping, fileId, player.NationId).DbNullIf(-1) },
                 { "secondary_nation_id", GetMapDbId(nationsMapping, fileId, player.SecondaryNationId).DbNullIf(-1) },
                 { "caps", player.InternationalCaps },
