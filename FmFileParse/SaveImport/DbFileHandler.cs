@@ -7,7 +7,12 @@ internal static class DbFileHandler
 {
     internal static DbFileData GetDbFileData()
     {
-        var dbFileData = new DbFileData
+        var staffList = GetStaffList(out var staffEndPosition);
+
+        // coach data (we don't care about)
+        _ = StringHandler.ExtractFileData("staff", 68, out var coachEndPosition, startAt: staffEndPosition, stopAtIdBreak: true);
+
+        return new DbFileData
         {
             FirstNames = GetStringData("first_names", 60),
             ClubCompetitions = GetData<ClubCompetition>("club_comp", 107),
@@ -16,26 +21,15 @@ internal static class DbFileHandler
             Confederations = GetData<Confederation>("continent", 198),
             LastNames = GetStringData("second_names", 60),
             Nations = GetData<Nation>("nation", 290),
+            Players = GetPlayersList(staffList, staffEndPosition + coachEndPosition)
         };
+    }
 
-        var stringData = StringHandler.ExtractFileData("staff", 157, out var staffEndPosition, stopAtIdBreak: true);
+    private static List<Player> GetPlayersList(Dictionary<int, Staff> staffList, int startPosition)
+    {
+        var stringData = StringHandler.ExtractFileData("staff", 70, out _, startAt: startPosition);
 
-        var staffList = new Dictionary<int, Staff>(stringData.Count);
-        foreach (var singleString in stringData)
-        {
-            var s = new Staff();
-            s.SetDataPositionableProperties(singleString);
-            if (s.DbStaffPlayerId >= 0)
-            {
-                staffList.Add(s.DbStaffPlayerId, s);
-            }
-        }
-
-        // coach data (we don't care about)
-        _ = StringHandler.ExtractFileData("staff", 68, out var coachEndPosition, startAt: staffEndPosition, stopAtIdBreak: true);
-        
-        stringData = StringHandler.ExtractFileData("staff", 70, out _, startAt: coachEndPosition + staffEndPosition);
-        var player = new List<Player>(stringData.Count);
+        var players = new List<Player>(stringData.Count);
         foreach (var singleString in stringData)
         {
             var p = new Player();
@@ -51,13 +45,46 @@ internal static class DbFileHandler
                         ContractEndDate = staff.DateContractEnd
                     };
                 }
-                player.Add(p);
+                players.Add(p);
             }
         }
 
-        dbFileData.Players = player;
+        var duplicatePlayersGroups = players
+            .GroupBy(x => (x.CommonNameId, x.FirstNameId, x.LastNameId, x.ClubId, x.ComputedDateOfBirth))
+            .Where(x => x.Count() > 1)
+            .ToList();
 
-        return dbFileData;
+        foreach (var duplicateGroup in duplicatePlayersGroups)
+        {
+            var keptPlayer = duplicateGroup
+                .OrderByDescending(x => x.WorldReputation)
+                .ThenByDescending(x => x.CurrentReputation)
+                .ThenByDescending(x => x.HomeReputation)
+                .ThenByDescending(x => x.CurrentAbility)
+                .ThenByDescending(x => x.PotentialAbility == -1 ? 120 : (x.PotentialAbility == -2 ? 160 : x.PotentialAbility))
+                .First();
+            players.RemoveAll(p => duplicateGroup.Contains(p) && p != keptPlayer);
+        }
+
+        return players;
+    }
+
+    private static Dictionary<int, Staff> GetStaffList(out int staffEndPosition)
+    {
+        var stringData = StringHandler.ExtractFileData("staff", 157, out staffEndPosition, stopAtIdBreak: true);
+
+        var staffList = new Dictionary<int, Staff>(stringData.Count);
+        foreach (var singleString in stringData)
+        {
+            var s = new Staff();
+            s.SetDataPositionableProperties(singleString);
+            if (s.DbStaffPlayerId >= 0)
+            {
+                staffList.Add(s.DbStaffPlayerId, s);
+            }
+        }
+
+        return staffList;
     }
 
     private static Dictionary<int, string> GetStringData(string dataName, int splitPosition)
