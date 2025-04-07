@@ -63,13 +63,7 @@ internal static class DbFileHandler
 
         foreach (var duplicateGroup in duplicatePlayersGroups)
         {
-            var keptPlayer = duplicateGroup
-                .OrderByDescending(x => x.WorldReputation)
-                .ThenByDescending(x => x.CurrentReputation)
-                .ThenByDescending(x => x.HomeReputation)
-                .ThenByDescending(x => x.CurrentAbility)
-                .ThenByDescending(x => x.PotentialAbility == -1 ? 120 : (x.PotentialAbility == -2 ? 160 : x.PotentialAbility))
-                .First();
+            var keptPlayer = duplicateGroup.GetMostRelevantPlayer();
             players.RemoveAll(p => duplicateGroup.Contains(p) && p != keptPlayer);
         }
 
