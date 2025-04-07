@@ -30,8 +30,6 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static readonly string[] PlayerTableColumns =
     [
-        // meta
-        "occurences",
         // intrinsic
         "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
         // nation related
@@ -62,14 +60,13 @@ internal class DataImporter(Action<string> reportProgress)
         "penalties_potential", "throw_ins_potential"
     ];
 
-    private static readonly (string name, bool hasAutoIncrement)[] Tables =
+    private static readonly string[] Tables =
     [
-        ("players", true),
-        ("clubs", true),
-        ("club_competitions", true),
-        ("nations", true),
-        ("confederations", true),
-        ("save_files_references", false)
+        "players",
+        "clubs",
+        "club_competitions",
+        "nations",
+        "confederations"
     ];
 
     private static readonly List<(string tSource, string cSource, string tTarget, string cTarget)> SqlKeysInfo =
@@ -102,21 +99,16 @@ internal class DataImporter(Action<string> reportProgress)
         ClearAllData();
 
         var confederations = ImportConfederations(saveFilePaths);
-        SetSaveFileReferences(confederations, nameof(Confederation));
 
         var nations = ImportNations(saveFilePaths, confederations);
-        SetSaveFileReferences(nations, nameof(Nation));
 
         var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
-        SetSaveFileReferences(clubCompetitions, nameof(ClubCompetition));
 
         var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
         SetClubsInformation(clubs, saveFilePaths);
-        SetSaveFileReferences(clubs, nameof(Club));
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
         UpdateStaffOnClubs(clubs, players, saveFilePaths);
-        SetSaveFileReferences(players, nameof(Player));
 
         CreateIndexesAndForeignKeys();
     }
@@ -131,16 +123,13 @@ internal class DataImporter(Action<string> reportProgress)
         connection.Open();
         using var command = connection.CreateCommand();
 
-        foreach (var (name, oi) in Tables)
+        foreach (var name in Tables)
         {
             command.CommandText = $"TRUNCATE TABLE {name}";
             command.ExecuteNonQuery();
 
-            if (oi)
-            {
-                command.CommandText = $"ALTER TABLE {name} AUTO_INCREMENT = 1";
-                command.ExecuteNonQuery();
-            }
+            command.CommandText = $"ALTER TABLE {name} AUTO_INCREMENT = 1";
+            command.ExecuteNonQuery();
         }
     }
 
@@ -158,9 +147,6 @@ internal class DataImporter(Action<string> reportProgress)
             command.CommandText = $"ALTER TABLE {tSource} DROP INDEX {cSource}";
             command.ExecuteNonQuerySecured();
         }
-
-        command.CommandText = "ALTER TABLE save_files_references DROP PRIMARY KEY";
-        command.ExecuteNonQuerySecured();
     }
 
     private void CreateIndexesAndForeignKeys()
@@ -171,10 +157,6 @@ internal class DataImporter(Action<string> reportProgress)
         connection.Open();
         using var command = connection.CreateCommand();
 
-        command.CommandText = "ALTER TABLE save_files_references " +
-            "ADD PRIMARY KEY(data_type, data_id, file_id)";
-        command.ExecuteNonQuery();
-
         foreach (var (tSource, cSource, tTarget, cTarget) in SqlKeysInfo)
         {
             command.CommandText = $"ALTER TABLE {tSource} " +
@@ -184,38 +166,6 @@ internal class DataImporter(Action<string> reportProgress)
             command.CommandText = $"ALTER TABLE {tSource} " +
                 $"ADD CONSTRAINT {string.Concat(tSource, "_", cSource, "_", tTarget)} FOREIGN KEY ({cSource}) " +
                 $"REFERENCES {tTarget}({cTarget}) ON DELETE RESTRICT ON UPDATE RESTRICT";
-            command.ExecuteNonQuery();
-        }
-    }
-
-    private void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
-    {
-        _reportProgress("Saves savefiles references map...");
-
-        if (data.Count == 0)
-        {
-            return;
-        }
-
-        const int CountByLot = 100;
-
-        var lotCount = (data.Count / CountByLot) + 1;
-        for (var i = 0; i < lotCount; i++)
-        {
-            var sqlRowValues = new List<string>(CountByLot * 12);
-            foreach (var cMap in data.Skip(i * CountByLot).Take(CountByLot))
-            {
-                foreach (var cMapIdKey in cMap.SaveId.Keys)
-                {
-                    sqlRowValues.Add($"('{MySqlHelper.EscapeString(dataTypeName)}', {cMap.DbId}, {cMapIdKey}, {cMap.SaveId[cMapIdKey]})");
-                }
-            }
-
-            using var connection = _getConnection();
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = $"INSERT INTO save_files_references (data_type, data_id, file_id, save_id) " +
-                $"VALUES {string.Join(", ", sqlRowValues)}";
             command.ExecuteNonQuery();
         }
     }
@@ -497,6 +447,25 @@ internal class DataImporter(Action<string> reportProgress)
         List<SaveIdMapper> clubsMapping)
     {
         _reportProgress("Players importation starts...");
+
+        _reportProgress("Remaps player ID...");
+        for (var fileId = 0; fileId <= saveFilePaths.Length; fileId++)
+        {
+            var filePlayersData = fileId == 0
+                ? GetDbFileDataFromCache().Players
+                : GetSaveGameDataFromCache(saveFilePaths[fileId - 1]).Players;
+
+            foreach (var p in filePlayersData)
+            {
+                p.ClubId = GetMapDbId(clubsMapping, fileId, p.ClubId);
+                p.NationId = GetMapDbId(nationsMapping, fileId, p.NationId);
+                p.SecondaryNationId = GetMapDbId(nationsMapping, fileId, p.SecondaryNationId);
+                if (p.Contract is not null)
+                {
+                    p.Contract.FutureClubId = GetMapDbId(clubsMapping, fileId, p.Contract.FutureClubId);
+                }
+            }
+        }
 
         using var connection = _getConnection();
         connection.Open();

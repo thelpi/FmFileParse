@@ -58,7 +58,8 @@ internal static class SystemHelper
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    public static string Sanitize(this string value) => value is null
-        ? string.Empty
-        : value.Trim().Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries).Last().Trim();
+    public static string Sanitize(this string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Split(NameNewLineSeparators, StringSplitOptions.RemoveEmptyEntries)[^1].Trim();
 }
