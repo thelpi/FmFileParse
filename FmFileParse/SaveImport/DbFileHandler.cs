@@ -57,7 +57,7 @@ internal static class DbFileHandler
         }
 
         var duplicatePlayersGroups = players
-            .GroupBy(x => (x.CommonName, x.FirstName, x.LastName, x.ClubId, x.ComputedDateOfBirth))
+            .GroupBy(x => (x.CommonName, x.FirstName, x.LastName, x.ClubId, x.ActualYearOfBirth, x.DateOfBirth.Month, x.DateOfBirth.Day))
             .Where(x => x.Count() > 1)
             .ToList();
 

@@ -209,7 +209,7 @@ public class Player : Staff
 
     public override IEnumerable<string> Describe(BaseFileData data)
     {
-        yield return $"FullName: {Fullname} - DateOfBirth: {ComputedDateOfBirth}";
+        yield return $"FullName: {Fullname} - DateOfBirth: {DateOfBirth}";
         yield return $"CurrentAbility: {CurrentAbility} - PotentialAbility: {PotentialAbility}";
         yield return $"RightFoot: {RightFoot} - LeftFoot: {LeftFoot}";
         yield return $"CurrentReputation: {CurrentReputation} - WorldReputation: {WorldReputation} - CurrentReputation: {CurrentReputation}";

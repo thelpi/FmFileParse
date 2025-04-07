@@ -122,11 +122,9 @@ public class Staff : BaseData
 
     public string CommonName { get; set; } = string.Empty;
 
-    public DateTime ComputedDateOfBirth => DateOfBirth.Year > 1900
-        ? DateOfBirth
-        : (YearOfBirth > 1900
-            ? new DateTime(YearOfBirth, 7, 1)
-            : new DateTime(1900, 7, 1));
+    public int ActualYearOfBirth => DateOfBirth.Year > 1900
+        ? DateOfBirth.Year
+        : YearOfBirth;
 
     public string Fullname => !string.IsNullOrWhiteSpace(CommonName)
         ? CommonName
