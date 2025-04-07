@@ -5,11 +5,12 @@ using FmFileParse.SaveImport;
 
 Console.WriteLine("0 - test the save file reader");
 Console.WriteLine("1 - data importation");
+Console.WriteLine("2 - data importation (players only)");
 Console.WriteLine("Other - exit");
 
 var rawChoice = Console.ReadLine();
 
-if (!int.TryParse(rawChoice, out var choice) || (choice != 0 && choice != 1))
+if (!int.TryParse(rawChoice, out var choice) || (choice != 0 && choice != 1 && choice != 2))
 {
     Console.WriteLine("No action to do; Press any key to close.");
     Console.ReadKey();
@@ -36,7 +37,7 @@ else
 {
     var importer = new DataImporter(Console.WriteLine);
 
-    importer.ProceedToImport(saveFiles);
+    importer.ProceedToImport(saveFiles, choice == 2);
 }
 
 Console.WriteLine("Process is done; Press any key to close.");

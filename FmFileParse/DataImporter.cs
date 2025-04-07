@@ -94,30 +94,45 @@ internal class DataImporter(Action<string> reportProgress)
     private readonly Dictionary<string, BaseFileData> _loadedSaveData = [];
     private readonly Action<string> _reportProgress = reportProgress;
 
-    public void ProceedToImport(string[] saveFilePaths)
+    public void ProceedToImport(string[] saveFilePaths, bool playerOnly)
     {
-        ClearAllData();
+        ClearAllData(playerOnly);
 
-        var confederations = ImportConfederations(saveFilePaths);
+        List<SaveIdMapper> nations;
+        List<SaveIdMapper> clubs;
 
-        var nations = ImportNations(saveFilePaths, confederations);
+        if (playerOnly)
+        {
+            nations = LoadMapping<Nation>();
+            clubs = LoadMapping<Club>();
+        }
+        else
+        {
+            var confederations = ImportConfederations(saveFilePaths);
+            SetSaveFileReferences(confederations, nameof(Confederation));
 
-        var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
+            nations = ImportNations(saveFilePaths, confederations);
+            SetSaveFileReferences(nations, nameof(Nation));
 
-        var clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
-        SetClubsInformation(clubs, saveFilePaths);
+            var clubCompetitions = ImportClubCompetitions(saveFilePaths, nations);
+            SetSaveFileReferences(clubCompetitions, nameof(ClubCompetition));
+
+            clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
+            SetClubsInformation(clubs, saveFilePaths);
+            SetSaveFileReferences(clubs, nameof(Club));
+        }
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
         UpdateStaffOnClubs(clubs, players, saveFilePaths);
 
-        CreateIndexesAndForeignKeys();
+        CreateIndexesAndForeignKeys(playerOnly);
     }
 
-    private void ClearAllData()
+    private void ClearAllData(bool playerOnly)
     {
         _reportProgress("Cleaning previous data starts...");
 
-        DropIndexesAndForeignKeys();
+        DropIndexesAndForeignKeys(playerOnly);
 
         using var connection = _getConnection();
         connection.Open();
@@ -125,15 +140,35 @@ internal class DataImporter(Action<string> reportProgress)
 
         foreach (var name in Tables)
         {
-            command.CommandText = $"TRUNCATE TABLE {name}";
+            if (!playerOnly || name == "players")
+            {
+                command.CommandText = $"TRUNCATE TABLE {name}";
+                command.ExecuteNonQuery();
+
+                command.CommandText = $"ALTER TABLE {name} AUTO_INCREMENT = 1";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        if (playerOnly)
+        {
+            command.CommandText = "UPDATE clubs " +
+                "SET liked_staff_1 = NULL, liked_staff_2 = NULL, liked_staff_3 = NULL, " +
+                "disliked_staff_1 = NULL, disliked_staff_2 = NULL, disliked_staff_3 = NULL";
             command.ExecuteNonQuery();
 
-            command.CommandText = $"ALTER TABLE {name} AUTO_INCREMENT = 1";
+            command.CommandText = "DELETE FROM save_files_references WHERE data_type = @data_type";
+            command.SetParameter("@data_type", DbType.String, nameof(Player));
+            command.ExecuteNonQuery();
+        }
+        else
+        {
+            command.CommandText = "TRUNCATE TABLE save_files_references";
             command.ExecuteNonQuery();
         }
     }
 
-    private void DropIndexesAndForeignKeys()
+    private void DropIndexesAndForeignKeys(bool playerOnly)
     {
         using var connection = _getConnection();
         connection.Open();
@@ -141,15 +176,21 @@ internal class DataImporter(Action<string> reportProgress)
 
         foreach (var (tSource, cSource, tTarget, _) in SqlKeysInfo)
         {
-            command.CommandText = $"ALTER TABLE {tSource} DROP FOREIGN KEY {string.Concat(tSource, "_", cSource, "_", tTarget)}";
-            command.ExecuteNonQuerySecured();
+            if (!playerOnly || tSource == "players" || tTarget == "players")
+            {
+                command.CommandText = $"ALTER TABLE {tSource} DROP FOREIGN KEY {string.Concat(tSource, "_", cSource, "_", tTarget)}";
+                command.ExecuteNonQuerySecured();
+            }
 
-            command.CommandText = $"ALTER TABLE {tSource} DROP INDEX {cSource}";
-            command.ExecuteNonQuerySecured();
+            if (!playerOnly || tSource == "players")
+            {
+                command.CommandText = $"ALTER TABLE {tSource} DROP INDEX {cSource}";
+                command.ExecuteNonQuerySecured();
+            }
         }
     }
 
-    private void CreateIndexesAndForeignKeys()
+    private void CreateIndexesAndForeignKeys(bool playerOnly)
     {
         _reportProgress("Creates indexes...");
 
@@ -159,15 +200,84 @@ internal class DataImporter(Action<string> reportProgress)
 
         foreach (var (tSource, cSource, tTarget, cTarget) in SqlKeysInfo)
         {
-            command.CommandText = $"ALTER TABLE {tSource} " +
-                $"ADD INDEX ({cSource})";
-            command.ExecuteNonQuery();
+            if (!playerOnly || tSource == "players")
+            {
+                command.CommandText = $"ALTER TABLE {tSource} " +
+                    $"ADD INDEX ({cSource})";
+                command.ExecuteNonQuery();
+            }
+            
+            if (!playerOnly || tSource == "players" || tTarget == "players")
+            {
+                command.CommandText = $"ALTER TABLE {tSource} " +
+                    $"ADD CONSTRAINT {string.Concat(tSource, "_", cSource, "_", tTarget)} FOREIGN KEY ({cSource}) " +
+                    $"REFERENCES {tTarget}({cTarget}) ON DELETE RESTRICT ON UPDATE RESTRICT";
+                command.ExecuteNonQuery();
+            }
+        }
+    }
 
-            command.CommandText = $"ALTER TABLE {tSource} " +
-                $"ADD CONSTRAINT {string.Concat(tSource, "_", cSource, "_", tTarget)} FOREIGN KEY ({cSource}) " +
-                $"REFERENCES {tTarget}({cTarget}) ON DELETE RESTRICT ON UPDATE RESTRICT";
+    private void SetSaveFileReferences(List<SaveIdMapper> data, string dataTypeName)
+    {
+        _reportProgress("Saves savefiles references map...");
+
+        if (data.Count == 0)
+        {
+            return;
+        }
+
+        const int CountByLot = 100;
+
+        var lotCount = (data.Count / CountByLot) + 1;
+        for (var i = 0; i < lotCount; i++)
+        {
+            var sqlRowValues = new List<string>(CountByLot * 12);
+            foreach (var cMap in data.Skip(i * CountByLot).Take(CountByLot))
+            {
+                foreach (var cMapIdKey in cMap.SaveId.Keys)
+                {
+                    sqlRowValues.Add($"('{MySqlHelper.EscapeString(dataTypeName)}', {cMap.DbId}, {cMapIdKey}, {cMap.SaveId[cMapIdKey]})");
+                }
+            }
+
+            using var connection = _getConnection();
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"INSERT INTO save_files_references (data_type, data_id, file_id, save_id) " +
+                $"VALUES {string.Join(", ", sqlRowValues)}";
             command.ExecuteNonQuery();
         }
+    }
+
+    private List<SaveIdMapper> LoadMapping<T>()
+        where T : BaseData
+    {
+        var mapping = new List<SaveIdMapper>(1000);
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM save_files_references WHERE data_type = @data_type ORDER BY data_id";
+        command.SetParameter("@data_type", DbType.String, typeof(T).Name);
+
+        var currentMap = new SaveIdMapper { DbId = -1 };
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (reader.GetInt32("data_id") != currentMap.DbId)
+            {
+                currentMap = new SaveIdMapper
+                {
+                    DbId = reader.GetInt32("data_id"),
+                    SaveId = []
+                };
+                mapping.Add(currentMap);
+            }
+
+            currentMap.SaveId.Add(reader.GetInt32("file_id"), reader.GetInt32("save_id"));
+        }
+
+        return mapping;
     }
 
     private List<SaveIdMapper> ImportConfederations(string[] saveFilePaths)
@@ -449,6 +559,13 @@ internal class DataImporter(Action<string> reportProgress)
         _reportProgress("Players importation starts...");
 
         _reportProgress("Remaps player ID...");
+        var rebindMapNations = nationsMapping
+            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
+            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
+        var rebindMapClubs = clubsMapping
+            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
+            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
+
         for (var fileId = 0; fileId <= saveFilePaths.Length; fileId++)
         {
             var filePlayersData = fileId == 0
@@ -457,12 +574,12 @@ internal class DataImporter(Action<string> reportProgress)
 
             foreach (var p in filePlayersData)
             {
-                p.ClubId = GetMapDbId(clubsMapping, fileId, p.ClubId);
-                p.NationId = GetMapDbId(nationsMapping, fileId, p.NationId);
-                p.SecondaryNationId = GetMapDbId(nationsMapping, fileId, p.SecondaryNationId);
+                p.ClubId = GetRebindMapDbId(rebindMapClubs, fileId, p.ClubId);
+                p.NationId = GetRebindMapDbId(rebindMapNations, fileId, p.NationId);
+                p.SecondaryNationId = GetRebindMapDbId(rebindMapNations, fileId, p.SecondaryNationId);
                 if (p.Contract is not null)
                 {
-                    p.Contract.FutureClubId = GetMapDbId(clubsMapping, fileId, p.Contract.FutureClubId);
+                    p.Contract.FutureClubId = GetRebindMapDbId(rebindMapClubs, fileId, p.Contract.FutureClubId);
                 }
             }
         }
@@ -672,6 +789,9 @@ internal class DataImporter(Action<string> reportProgress)
         var match = mapping.FirstOrDefault(x => x.SaveId.TryGetValue(fileIndex, out var currentSaveId) && currentSaveId == saveId);
         return match.Equals(default(SaveIdMapper)) ? -1 : match.DbId;
     }
+
+    private static int GetRebindMapDbId(Dictionary<(int, int), int> mapping, int fileIndex, int saveId)
+        => saveId >= 0 && mapping.TryGetValue((fileIndex, saveId), out var dbId) ? dbId : -1;
 
     private static DbType GetDbType(string column)
     {
