@@ -9,12 +9,13 @@ internal static class SystemHelper
     /// Computes the average date of a list of dates.
     /// </summary>
     /// <param name="source"></param>
+    /// <param name="getDate"></param>
     /// <returns></returns>
-    public static DateTime Average(this IEnumerable<DateTime> source)
+    public static DateTime Average<TSource>(this IEnumerable<TSource> source, Func<TSource, DateTime> getDate)
     {
-        var year = (int)Math.Round(source.Select(x => x.Year).Average());
-        var month = (int)Math.Round(source.Select(x => x.Month).Average());
-        var day = (int)Math.Round(source.Select(x => x.Day).Average());
+        var year = (int)Math.Round(source.Select(x => getDate(x).Year).Average());
+        var month = (int)Math.Round(source.Select(x => getDate(x).Month).Average());
+        var day = (int)Math.Round(source.Select(x => getDate(x).Day).Average());
 
         var maxDayFebruary = DateTime.IsLeapYear(year) ? 29 : 28;
         if (month == 2 && day > maxDayFebruary)

@@ -130,5 +130,11 @@ public class Staff : BaseData
         ? CommonName
         : string.Concat(LastName, ", ", FirstName);
 
+    public DateTime? ActualDateOfBirth => DateOfBirth.Year > 1900
+        ? DateOfBirth
+        : (YearOfBirth > 1900
+            ? new DateTime(YearOfBirth, 7, 1)
+            : null);
+
     public override IEnumerable<string> Describe(BaseFileData data) => [];
 }

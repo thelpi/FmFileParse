@@ -59,7 +59,7 @@ public class Player : Staff
     public byte RightSide { get; set; }
 
     [DataPosition(25)]
-    public byte CentreSide { get; set; }
+    public byte CenterSide { get; set; }
 
     [DataPosition(48)]
     public byte LeftFoot { get; set; }
@@ -216,7 +216,7 @@ public class Player : Staff
         yield return $"InternationalCaps: {InternationalCaps} - InternationalGoals: {InternationalGoals}";
         yield return $"Value: {Value} - ContractEndDate: {Contract?.ContractEndDate}";
         yield return $"Squad status: {Contract?.SquadStatus} - Transfer status: {Contract?.TransferStatus}";
-        yield return $"LeftSide: {LeftSide} - CentreSide: {CentreSide} - RightSide: {RightSide}";
+        yield return $"LeftSide: {LeftSide} - CentreSide: {CenterSide} - RightSide: {RightSide}";
         yield return $"GoalKeeperPos: {GoalKeeperPos} - SweeperPos: {SweeperPos} - DefenderPos: {DefenderPos}";
         yield return $"DefensiveMidfielderPos: {DefensiveMidfielderPos} - MidfielderPos: {MidfielderPos} - AttackingMidfielderPos: {AttackingMidfielderPos}";
         yield return $"StrikerPos: {StrikerPos} - FreeRolePos: {FreeRolePos} - WingBackPos: {WingBackPos}";

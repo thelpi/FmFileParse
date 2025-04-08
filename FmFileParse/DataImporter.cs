@@ -670,9 +670,164 @@ internal class DataImporter(Action<string> reportProgress)
             return;
         }
 
-        // do stuff
+        var savesValues = savesPlayer.Select(x => x.Value).ToList();
 
-        var map = new SaveIdMapper();
+        byte GetSrcOrMax(Func<Player, byte> getFunc)
+            => getFunc(dbPlayer) > 0 ? getFunc(dbPlayer) : savesValues.GetMaxOccurence(getFunc).Key;
+
+        int GetSrcOrAvg(Func<Player, int> getFunc)
+            => getFunc(dbPlayer) > 0 ? getFunc(dbPlayer) : Avg(getFunc);
+
+        int Avg(Func<Player, int> getFunc)
+            => (int)Math.Round(savesValues.Average(getFunc));
+
+        var clubId = dbPlayer.ClubId;
+        var clubIdSaves = savesValues.GetMaxOccurence(x => x.ClubId).Key;
+        if (clubId != clubIdSaves)
+        {
+            System.Diagnostics.Debug.WriteLine("Save files have a different club than source database for the player.");
+            clubId = clubIdSaves;
+        }
+
+        DateTime? endOfContract = null;
+        if (clubId != -1)
+        {
+            if (dbPlayer.Contract != null && dbPlayer.Contract.ContractEndDate.HasValue && dbPlayer.Contract.ContractEndDate.Value.Year != 1900)
+            {
+                endOfContract = dbPlayer.Contract.ContractEndDate.Value;
+            }
+            else if (savesValues.Count(x => (x.Contract?.ContractEndDate).HasValue) / (decimal)savesCount > Settings.MinValueOccurenceRate)
+            {
+                endOfContract = savesValues.Where(x => (x.Contract?.ContractEndDate).HasValue).Average(x => x.Contract!.ContractEndDate!.Value);
+            }
+        }
+
+        var fields = new Dictionary<string, object>
+        {
+            { "first_name", dbPlayer.FirstName.DbNullIf(string.Empty) },
+            { "last_name", dbPlayer.LastName.DbNullIf(string.Empty) },
+            { "common_name", dbPlayer.CommonName.DbNullIf(string.Empty) },
+            { "date_of_birth", dbPlayer.ActualDateOfBirth ?? savesValues.Average(x => x.DateOfBirth) },
+            { "right_foot", GetSrcOrAvg(x => x.RightFoot) },
+            { "left_foot", GetSrcOrAvg(x => x.LeftFoot) },
+            { "nation_id", dbPlayer.NationId.DbNullIf(-1) },
+            { "secondary_nation_id", dbPlayer.SecondaryNationId.DbNullIf(-1) },
+            { "caps", dbPlayer.InternationalCaps },
+            { "international_goals", dbPlayer.InternationalGoals },
+            { "ability", GetSrcOrAvg(x => x.CurrentAbility) },
+            { "potential_ability", GetSrcOrAvg(x => x.PotentialAbility) },
+            { "home_reputation", GetSrcOrAvg(x => x.HomeReputation) },
+            { "current_reputation", GetSrcOrAvg(x => x.CurrentAbility) },
+            { "world_reputation", GetSrcOrAvg(x => x.WorldReputation) },
+            // contract
+            { "club_id", clubId.DbNullIf(-1) },
+            { "value", clubId == -1 ? 0 : GetSrcOrAvg(x => x.Value) },
+            { "contract_expiration", endOfContract.DbNullIf() },
+            { "wage", clubId == -1 ? 0 : GetSrcOrAvg(x => x.Wage) },
+            { "manager_job_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.ManagerReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
+            { "min_fee_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.MinimumFeeReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
+            { "non_play_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPlayingReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
+            { "non_promotion_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPromotionReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
+            { "relegation_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.RelegationReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
+            { "leaving_on_bosman", clubId != -1 && savesValues.GetMaxOccurence(x => x.Contract?.LeavingOnBosman ?? false).Key },
+            { "future_club_id", clubId == -1 ? DBNull.Value : savesValues.GetMaxOccurence(x => x.Contract?.FutureClubId ?? -1).Key.DbNullIf(-1) },
+            { "transfer_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.TransferStatus).Key).DbNullIf() },
+            { "squad_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.SquadStatus).Key).DbNullIf() },
+            // positioning
+            { "pos_goalkeeper", GetSrcOrMax(x => x.GoalKeeperPos)  },
+            { "pos_sweeper", GetSrcOrMax(x => x.SweeperPos) },
+            { "pos_defender", GetSrcOrMax(x => x.DefenderPos) },
+            { "pos_defensive_midfielder", GetSrcOrMax(x => x.DefensiveMidfielderPos) },
+            { "pos_midfielder", GetSrcOrMax(x => x.MidfielderPos) },
+            { "pos_attacking_midfielder", GetSrcOrMax(x => x.AttackingMidfielderPos) },
+            { "pos_forward", GetSrcOrMax(x => x.StrikerPos) },
+            { "pos_wingback", GetSrcOrMax(x => x.WingBackPos) },
+            { "pos_free_role", GetSrcOrMax(x => x.FreeRolePos) },
+            { "side_left", GetSrcOrMax(x => x.LeftSide) },
+            { "side_right", GetSrcOrMax(x => x.RightSide) },
+            { "side_center", GetSrcOrMax(x => x.CenterSide) },
+            // attributes non intrinsic
+            { "acceleration", 0 },
+            { "adaptability", 0 },
+            { "aggression", 0 },
+            { "agility", 0 },
+            { "ambition", 0 },
+            { "balance", 0 },
+            { "bravery", 0 },
+            { "consistency", 0 },
+            { "corners", 0 },
+            { "determination", 0 },
+            { "dirtiness", 0 },
+            { "flair", 0 },
+            { "important_matches", 0 },
+            { "influence", 0 },
+            { "injury_proneness", 0 },
+            { "jumping", 0 },
+            { "loyalty", 0 },
+            { "natural_fitness", 0 },
+            { "pace", 0 },
+            { "pressure", 0 },
+            { "professionalism", 0 },
+            { "set_pieces", 0 },
+            { "sportsmanship", 0 },
+            { "stamina", 0 },
+            { "strength", 0 },
+            { "teamwork", 0 },
+            { "technique", 0 },
+            { "temperament", 0 },
+            { "versatility", 0 },
+            { "work_rate", 0 },
+            // intrinstic: base
+            { "anticipation", 0 },
+            { "creativity", 0 },
+            { "crossing", 0 },
+            { "decisions", 0 },
+            { "dribbling", 0 },
+            { "finishing", 0 },
+            { "handling", 0 },
+            { "heading", 0 },
+            { "long_shots", 0 },
+            { "marking", 0 },
+            { "off_the_ball", 0 },
+            { "one_on_ones", 0 },
+            { "passing", 0 },
+            { "positioning", 0 },
+            { "reflexes", 0 },
+            { "tackling", 0 },
+            { "penalties", 0 },
+            { "throw_ins", 0 },
+            // intrinstic: potential
+            { "anticipation_potential", 0 },
+            { "creativity_potential", 0 },
+            { "crossing_potential", 0 },
+            { "decisions_potential", 0 },
+            { "dribbling_potential", 0 },
+            { "finishing_potential", 0 },
+            { "handling_potential", 0 },
+            { "heading_potential", 0 },
+            { "long_shots_potential", 0 },
+            { "marking_potential", 0 },
+            { "off_the_ball_potential", 0 },
+            { "one_on_ones_potential", 0 },
+            { "passing_potential", 0 },
+            { "positioning_potential", 0 },
+            { "reflexes_potential", 0 },
+            { "tacking_potential", 0 },
+            { "penalties_potential", 0 },
+            { "throw_ins_potential", 0 }
+        };
+
+        foreach (var f in fields.Keys)
+        {
+            command.Parameters[$"@{f}"].Value = fields[f];
+        }
+        command.ExecuteNonQuery();
+
+        var map = new SaveIdMapper
+        {
+            DbId = (int)command.LastInsertedId,
+            SaveId = savesPlayer.ToDictionary(x => x.Key, x => x.Value.Id)
+        };
 
         collectedDbIdMap.Add(map);
     }
