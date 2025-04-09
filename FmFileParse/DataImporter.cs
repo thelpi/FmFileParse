@@ -558,32 +558,6 @@ internal class DataImporter(Action<string> reportProgress)
     {
         _reportProgress("Players importation starts...");
 
-        _reportProgress("Remaps player ID...");
-        var rebindMapNations = nationsMapping
-            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
-            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
-        var rebindMapClubs = clubsMapping
-            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
-            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
-
-        for (var fileId = 0; fileId <= saveFilePaths.Length; fileId++)
-        {
-            var filePlayersData = fileId == 0
-                ? GetDbFileDataFromCache().Players
-                : GetSaveGameDataFromCache(saveFilePaths[fileId - 1]).Players;
-
-            foreach (var p in filePlayersData)
-            {
-                p.ClubId = GetRebindMapDbId(rebindMapClubs, fileId, p.ClubId);
-                p.NationId = GetRebindMapDbId(rebindMapNations, fileId, p.NationId);
-                p.SecondaryNationId = GetRebindMapDbId(rebindMapNations, fileId, p.SecondaryNationId);
-                if (p.Contract is not null)
-                {
-                    p.Contract.FutureClubId = GetRebindMapDbId(rebindMapClubs, fileId, p.Contract.FutureClubId);
-                }
-            }
-        }
-
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -596,21 +570,41 @@ internal class DataImporter(Action<string> reportProgress)
 
         var collectedDbIdMap = new List<SaveIdMapper>(20000);
 
+        var nationsMapRebind = nationsMapping
+            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
+            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
+
+        var clubsMapRebind = clubsMapping
+            .SelectMany(x => x.SaveId.Select(kvp => (kvp.Key, kvp.Value, x.DbId)))
+            .ToDictionary(x => (x.Key, x.Value), x => x.DbId);
+
+        // TODO: ugly count
+        var namesFromSaves = new HashSet<(string, string, string)>(20000);
         var saveFilesPlayers = new Dictionary<int, List<Player>>(saveFilePaths.Length);
-        for (var i = 0; i < saveFilePaths.Length; i++)
+        for (var i = 1; i <= saveFilePaths.Length; i++)
         {
-            saveFilesPlayers.Add(i + 1, GetSaveGameDataFromCache(saveFilePaths[i]).Players.ToList());
+            var savePlayers = GetSaveGameDataFromCache(saveFilePaths[i - 1]).Players;
+
+            foreach (var p in savePlayers)
+            {
+                RebindPlayerIds(p, i, nationsMapRebind, clubsMapRebind);
+                namesFromSaves.Add((p.FirstName, p.LastName, p.CommonName));
+            }
+
+            saveFilesPlayers.Add(i, savePlayers);
         }
 
-        var allKeys = saveFilesPlayers.Values
-            .SelectMany(x => x)
-            .GroupBy(x => (x.FirstName, x.LastName, x.CommonName))
-            .Select(x => x.Key)
-            .ToList();
+        var dbPlayers = new List<Player>(namesFromSaves.Count);
+        foreach (var p in GetDbFileDataFromCache().Players)
+        {
+            if (namesFromSaves.Contains((p.FirstName, p.LastName, p.CommonName)))
+            {
+                RebindPlayerIds(p, 0, nationsMapRebind, clubsMapRebind);
+                dbPlayers.Add(p);
+            }
+        }
 
-        var ip = 0;
-        var pGroups = GetDbFileDataFromCache().Players
-            .Where(p => allKeys.Contains((p.FirstName, p.LastName, p.CommonName)))
+        var pGroups = dbPlayers
             .GroupBy(x => (x.CommonName, x.LastName, x.FirstName))
             .Select(x => (x.Key, x.ToList()))
             .ToList();
@@ -644,7 +638,7 @@ internal class DataImporter(Action<string> reportProgress)
                         playersFromSaves.Add(fileId, matchingSavePlayers[0]);
                     }
                 }
-                ImportPlayer(pList[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                ImportPlayer(pList[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command);
             }
             else
             {
@@ -681,7 +675,7 @@ internal class DataImporter(Action<string> reportProgress)
                                 playersFromSaves.Add(fileId, matchingSavePlayers[0]);
                             }
                         }
-                        ImportPlayer(pList2[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                        ImportPlayer(pList2[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command);
                     }
                     else
                     {
@@ -717,7 +711,7 @@ internal class DataImporter(Action<string> reportProgress)
                                         playersFromSaves.Add(fileId, matchingSavePlayers[0]);
                                     }
                                 }
-                                ImportPlayer(pList3[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                                ImportPlayer(pList3[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command);
                             }
                             else
                             {
@@ -752,7 +746,7 @@ internal class DataImporter(Action<string> reportProgress)
                                                 playersFromSaves.Add(fileId, matchingSavePlayers[0]);
                                             }
                                         }
-                                        ImportPlayer(pList4[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                                        ImportPlayer(pList4[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command);
                                     }
                                     else
                                     {
@@ -769,11 +763,25 @@ internal class DataImporter(Action<string> reportProgress)
         return collectedDbIdMap;
     }
 
-    private void ImportPlayer(Player dbPlayer,
+    private static void RebindPlayerIds(Player player,
+        int fileId,
+        Dictionary<(int Key, int Value), int> nationsMapRebind,
+        Dictionary<(int Key, int Value), int> clubsMapRebind)
+    {
+        player.ClubId = GetRebindMapDbId(clubsMapRebind, fileId, player.ClubId);
+        player.NationId = GetRebindMapDbId(nationsMapRebind, fileId, player.NationId);
+        player.SecondaryNationId = GetRebindMapDbId(nationsMapRebind, fileId, player.SecondaryNationId);
+        if (player.Contract is not null)
+        {
+            player.Contract.FutureClubId = GetRebindMapDbId(clubsMapRebind, fileId, player.Contract.FutureClubId);
+        }
+    }
+
+    private static void ImportPlayer(Player dbPlayer,
         Dictionary<int, Player> savesPlayer,
         List<SaveIdMapper> collectedDbIdMap,
         int savesCount,
-        MySqlCommand command, ref int iP)
+        MySqlCommand command)
     {
         if (savesPlayer.Count / (decimal)savesCount < Settings.MinPlayerOccurencesRate)
         {
@@ -782,8 +790,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         if (DateTime.Now.Year == 2025)
         {
-            iP++;
-            Console.WriteLine($"Player to create {iP}");
+            Console.WriteLine("Player imported");
             return;
         }
 
