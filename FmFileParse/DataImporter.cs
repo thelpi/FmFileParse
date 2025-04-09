@@ -596,77 +596,194 @@ internal class DataImporter(Action<string> reportProgress)
 
         var collectedDbIdMap = new List<SaveIdMapper>(20000);
 
-        var dbPlayers = GetDbFileDataFromCache().Players;
-
-        var keySelectors = new List<Func<Player, object>>
+        var saveFilesPlayers = new Dictionary<int, List<Player>>(saveFilePaths.Length);
+        for (var i = 0; i < saveFilePaths.Length; i++)
         {
-            x => (x.CommonName, x.LastName, x.FirstName),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth, x.ClubId)
-        };
+            saveFilesPlayers.Add(i + 1, GetSaveGameDataFromCache(saveFilePaths[i]).Players.ToList());
+        }
 
-        CollectAndImportPlayers(dbPlayers, keySelectors, saveFilePaths, collectedDbIdMap, 0, command, null);
-
-        return collectedDbIdMap;
-    }
-
-    private void CollectAndImportPlayers(List<Player> players,
-        List<Func<Player, object>> keySelectors,
-        string[] saveFilePaths,
-        List<SaveIdMapper> collectedDbIdMap,
-        int depth,
-        MySqlCommand command,
-        object? formerKey)
-    {
-        var pGroups = players
-            .Where(x => depth == 0 || keySelectors[depth - 1](x).Equals(formerKey))
-            .GroupBy(keySelectors[depth])
+        var allKeys = saveFilesPlayers.Values
+            .SelectMany(x => x)
+            .GroupBy(x => (x.FirstName, x.LastName, x.CommonName))
+            .Select(x => x.Key)
             .ToList();
-        foreach (var pGroup in pGroups)
+
+        var ip = 0;
+        var pGroups = GetDbFileDataFromCache().Players
+            .Where(p => allKeys.Contains((p.FirstName, p.LastName, p.CommonName)))
+            .GroupBy(x => (x.CommonName, x.LastName, x.FirstName))
+            .Select(x => (x.Key, x.ToList()))
+            .ToList();
+        foreach (var (pKey, pList) in pGroups)
         {
-            if (pGroup.Count() == 1)
+            if (pList.Count == 1)
             {
-                var dbP = pGroup.First();
                 var playersFromSaves = new Dictionary<int, Player>(saveFilePaths.Length);
                 for (var fileId = 1; fileId <= saveFilePaths.Length; fileId++)
                 {
-                    var matchingSavePlayer = GetSaveGameDataFromCache(saveFilePaths[fileId - 1]).Players
-                        .Where(x => keySelectors[depth](x).Equals(pGroup.Key))
-                        .OrderByDescending(x => x.ClubId == dbP.ClubId)
-                        .ThenByDescending(x => x.DateOfBirth == dbP.DateOfBirth)
-                        .ThenByDescending(x => x.ActualYearOfBirth == dbP.ActualYearOfBirth)
-                        .GetMostRelevantPlayer();
-                    if (matchingSavePlayer is not null)
+                    var matchingSavePlayers = saveFilesPlayers[fileId]
+                        .Where(x => (x.CommonName, x.LastName, x.FirstName) == pKey)
+                        .ToList();
+
+                    if (matchingSavePlayers.Count > 1)
                     {
+                        var matchingSavePlayer = matchingSavePlayers
+                            .OrderByDescending(x => x.ActualYearOfBirth == pList[0].ActualYearOfBirth)
+                            .ThenByDescending(x => x.DateOfBirth == pList[0].DateOfBirth)
+                            .ThenByDescending(x => x.ClubId == pList[0].ClubId)
+                            .GetMostRelevantPlayer()!;
+
+                        saveFilesPlayers[fileId].RemoveAll(matchingSavePlayers.Contains);
+
                         playersFromSaves.Add(fileId, matchingSavePlayer);
                     }
+                    else if (matchingSavePlayers.Count == 1)
+                    {
+                        saveFilesPlayers[fileId].Remove(matchingSavePlayers[0]);
+
+                        playersFromSaves.Add(fileId, matchingSavePlayers[0]);
+                    }
                 }
-                ImportPlayer(dbP, playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command);
+                ImportPlayer(pList[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
             }
             else
             {
-                var newDepth = depth + 1;
-                if (newDepth == keySelectors.Count)
+                var pGroups2 = pList
+                    .GroupBy(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth))
+                    .Select(x => (x.Key, x.ToList()))
+                    .ToList();
+                foreach (var (pKey2, pList2) in pGroups2)
                 {
-                    throw new NotSupportedException("There are no further keys available to distinguish players.");
-                }
-                else
-                {
-                    CollectAndImportPlayers(players, keySelectors, saveFilePaths, collectedDbIdMap, newDepth, command, pGroup.Key);
+                    if (pList2.Count == 1)
+                    {
+                        var playersFromSaves = new Dictionary<int, Player>(saveFilePaths.Length);
+                        for (var fileId = 1; fileId <= saveFilePaths.Length; fileId++)
+                        {
+                            var matchingSavePlayers = saveFilesPlayers[fileId]
+                                .Where(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth) == pKey2)
+                                .ToList();
+
+                            if (matchingSavePlayers.Count > 1)
+                            {
+                                var matchingSavePlayer = matchingSavePlayers
+                                    .OrderByDescending(x => x.DateOfBirth == pList2[0].DateOfBirth)
+                                    .ThenByDescending(x => x.ClubId == pList2[0].ClubId)
+                                    .GetMostRelevantPlayer()!;
+
+                                saveFilesPlayers[fileId].RemoveAll(matchingSavePlayers.Contains);
+
+                                playersFromSaves.Add(fileId, matchingSavePlayer);
+                            }
+                            else if (matchingSavePlayers.Count == 1)
+                            {
+                                saveFilesPlayers[fileId].Remove(matchingSavePlayers[0]);
+
+                                playersFromSaves.Add(fileId, matchingSavePlayers[0]);
+                            }
+                        }
+                        ImportPlayer(pList2[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                    }
+                    else
+                    {
+                        var pGroups3 = pList2
+                            .GroupBy(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth))
+                            .Select(x => (x.Key, x.ToList()))
+                            .ToList();
+                        foreach (var (pKey3, pList3) in pGroups3)
+                        {
+                            if (pList3.Count == 1)
+                            {
+                                var playersFromSaves = new Dictionary<int, Player>(saveFilePaths.Length);
+                                for (var fileId = 1; fileId <= saveFilePaths.Length; fileId++)
+                                {
+                                    var matchingSavePlayers = saveFilesPlayers[fileId]
+                                        .Where(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth) == pKey3)
+                                        .ToList();
+
+                                    if (matchingSavePlayers.Count > 1)
+                                    {
+                                        var matchingSavePlayer = matchingSavePlayers
+                                            .OrderByDescending(x => x.ClubId == pList3[0].ClubId)
+                                            .GetMostRelevantPlayer()!;
+
+                                        saveFilesPlayers[fileId].RemoveAll(matchingSavePlayers.Contains);
+
+                                        playersFromSaves.Add(fileId, matchingSavePlayer);
+                                    }
+                                    else if (matchingSavePlayers.Count == 1)
+                                    {
+                                        saveFilesPlayers[fileId].Remove(matchingSavePlayers[0]);
+
+                                        playersFromSaves.Add(fileId, matchingSavePlayers[0]);
+                                    }
+                                }
+                                ImportPlayer(pList3[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                            }
+                            else
+                            {
+                                var pGroups4 = pList3
+                                    .GroupBy(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth, x.ClubId))
+                                    .Select(x => (x.Key, x.ToList()))
+                                    .ToList();
+                                foreach (var (pKey4, pList4) in pGroups4)
+                                {
+                                    if (pList4.Count == 1)
+                                    {
+                                        var playersFromSaves = new Dictionary<int, Player>(saveFilePaths.Length);
+                                        for (var fileId = 1; fileId <= saveFilePaths.Length; fileId++)
+                                        {
+                                            var matchingSavePlayers = saveFilesPlayers[fileId]
+                                                .Where(x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth, x.ClubId) == pKey4)
+                                                .ToList();
+
+                                            if (matchingSavePlayers.Count > 1)
+                                            {
+                                                var matchingSavePlayer = matchingSavePlayers
+                                                    .GetMostRelevantPlayer()!;
+
+                                                saveFilesPlayers[fileId].RemoveAll(matchingSavePlayers.Contains);
+
+                                                playersFromSaves.Add(fileId, matchingSavePlayer);
+                                            }
+                                            else if (matchingSavePlayers.Count == 1)
+                                            {
+                                                saveFilesPlayers[fileId].Remove(matchingSavePlayers[0]);
+
+                                                playersFromSaves.Add(fileId, matchingSavePlayers[0]);
+                                            }
+                                        }
+                                        ImportPlayer(pList4[0], playersFromSaves, collectedDbIdMap, saveFilePaths.Length, command, ref ip);
+                                    }
+                                    else
+                                    {
+                                        throw new NotSupportedException("There are no further keys available to distinguish players.");
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+
+        return collectedDbIdMap;
     }
 
     private void ImportPlayer(Player dbPlayer,
         Dictionary<int, Player> savesPlayer,
         List<SaveIdMapper> collectedDbIdMap,
         int savesCount,
-        MySqlCommand command)
+        MySqlCommand command, ref int iP)
     {
         if (savesPlayer.Count / (decimal)savesCount < Settings.MinPlayerOccurencesRate)
         {
+            return;
+        }
+
+        if (DateTime.Now.Year == 2025)
+        {
+            iP++;
+            Console.WriteLine($"Player to create {iP}");
             return;
         }
 
