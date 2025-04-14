@@ -18,6 +18,7 @@ internal class DataImporter(Action<string> reportProgress)
         "date_of_birth", "contract_expiration"
     ];
 
+    // only columns valuated during insertion
     private static readonly string[] PlayerTableColumns =
     [
         // intrinsic
@@ -76,7 +77,19 @@ internal class DataImporter(Action<string> reportProgress)
         ("clubs", "rival_club_3", "clubs", "id"),
         ("players", "nation_id", "nations", "id"),
         ("players", "secondary_nation_id", "nations", "id"),
-        ("players", "club_id", "clubs", "id")
+        ("players", "club_id", "clubs", "id"),
+        ("players", "liked_staff_1", "players", "id"),
+        ("players", "liked_staff_2", "players", "id"),
+        ("players", "liked_staff_3", "players", "id"),
+        ("players", "disliked_staff_1", "players", "id"),
+        ("players", "disliked_staff_2", "players", "id"),
+        ("players", "disliked_staff_3", "players", "id"),
+        ("players", "liked_club_1", "clubs", "id"),
+        ("players", "liked_club_2", "clubs", "id"),
+        ("players", "liked_club_3", "clubs", "id"),
+        ("players", "disliked_club_1", "clubs", "id"),
+        ("players", "disliked_club_2", "clubs", "id"),
+        ("players", "disliked_club_3", "clubs", "id")
     ];
 
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
@@ -113,6 +126,7 @@ internal class DataImporter(Action<string> reportProgress)
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
         UpdateStaffPreferencesOnClubs(clubs, players);
+        UpdatePlayersPreferences(players, clubs);
 
         CreateIndexesAndForeignKeys(playerOnly);
     }
@@ -360,7 +374,7 @@ internal class DataImporter(Action<string> reportProgress)
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
 
-        var dbMapPlayers = playersMapping
+        var playersMapRebind = playersMapping
             .Where(x => x.SaveId.ContainsKey(0))
             .ToDictionary(x => x.SaveId[0], x => x.DbId);
 
@@ -368,13 +382,71 @@ internal class DataImporter(Action<string> reportProgress)
         {
             var dbClub = GetDbFileDataFromCache().Clubs[clubMap.SaveId[0]];
 
-            command.Parameters["@liked_staff_1"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff1, out var dbId1) ? dbId1 : -1).DbNullIf(-1);
-            command.Parameters["@liked_staff_2"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff2, out var dbId2) ? dbId2 : -1).DbNullIf(-1);
-            command.Parameters["@liked_staff_3"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff3, out var dbId3) ? dbId3 : -1).DbNullIf(-1);
-            command.Parameters["@disliked_staff_1"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff1, out var dbId4) ? dbId4 : -1).DbNullIf(-1);
-            command.Parameters["@disliked_staff_2"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff2, out var dbId5) ? dbId5 : -1).DbNullIf(-1);
-            command.Parameters["@disliked_staff_3"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff3, out var dbId6) ? dbId6 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_1"].Value = (playersMapRebind.TryGetValue(dbClub.LikedStaff1, out var dbId1) ? dbId1 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_2"].Value = (playersMapRebind.TryGetValue(dbClub.LikedStaff2, out var dbId2) ? dbId2 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_3"].Value = (playersMapRebind.TryGetValue(dbClub.LikedStaff3, out var dbId3) ? dbId3 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_1"].Value = (playersMapRebind.TryGetValue(dbClub.DislikedStaff1, out var dbId4) ? dbId4 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_2"].Value = (playersMapRebind.TryGetValue(dbClub.DislikedStaff2, out var dbId5) ? dbId5 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_3"].Value = (playersMapRebind.TryGetValue(dbClub.DislikedStaff3, out var dbId6) ? dbId6 : -1).DbNullIf(-1);
             command.Parameters["@id"].Value = clubMap.DbId;
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private void UpdatePlayersPreferences(List<SaveIdMapper> playersMapping,
+        List<SaveIdMapper> clubsMapping)
+    {
+        _reportProgress("Updates player's preferences information...");
+
+        using var connection = _getConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE players " +
+            "SET liked_staff_1 = @liked_staff_1, liked_staff_2 = @liked_staff_2, liked_staff_3 = @liked_staff_3, " +
+            "disliked_staff_1 = @disliked_staff_1, disliked_staff_2 = @disliked_staff_2, disliked_staff_3 = @disliked_staff_3, " +
+            "liked_club_1 = @liked_club_1, liked_club_2 = @liked_club_2, liked_club_3 = @liked_club_3, " +
+            "disliked_club_1 = @disliked_club_1, disliked_club_2 = @disliked_club_2, disliked_club_3 = @disliked_club_3 " +
+            "WHERE id = @id";
+        command.SetParameter("liked_staff_1", DbType.Int32);
+        command.SetParameter("liked_staff_2", DbType.Int32);
+        command.SetParameter("liked_staff_3", DbType.Int32);
+        command.SetParameter("disliked_staff_1", DbType.Int32);
+        command.SetParameter("disliked_staff_2", DbType.Int32);
+        command.SetParameter("disliked_staff_3", DbType.Int32);
+        command.SetParameter("liked_club_1", DbType.Int32);
+        command.SetParameter("liked_club_2", DbType.Int32);
+        command.SetParameter("liked_club_3", DbType.Int32);
+        command.SetParameter("disliked_club_1", DbType.Int32);
+        command.SetParameter("disliked_club_2", DbType.Int32);
+        command.SetParameter("disliked_club_3", DbType.Int32);
+        command.SetParameter("id", DbType.Int32);
+        command.Prepare();
+
+        var clubsMapRebind = clubsMapping
+            .Where(x => x.SaveId.ContainsKey(0))
+            .ToDictionary(x => x.SaveId[0], x => x.DbId);
+
+        var playersMapRebind = playersMapping
+            .Where(x => x.SaveId.ContainsKey(0))
+            .ToDictionary(x => x.SaveId[0], x => x.DbId);
+
+        foreach (var pMap in playersMapping)
+        {
+            var dbPlayer = GetDbFileDataFromCache().Players.First(x => x.Id == pMap.SaveId[0]);
+
+            command.Parameters["@liked_staff_1"].Value = (playersMapRebind.TryGetValue(dbPlayer.FavStaff1, out var dbpId1) ? dbpId1 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_2"].Value = (playersMapRebind.TryGetValue(dbPlayer.FavStaff2, out var dbpId2) ? dbpId2 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_3"].Value = (playersMapRebind.TryGetValue(dbPlayer.FavStaff3, out var dbpId3) ? dbpId3 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_1"].Value = (playersMapRebind.TryGetValue(dbPlayer.DislikeStaff1, out var dbpId4) ? dbpId4 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_2"].Value = (playersMapRebind.TryGetValue(dbPlayer.DislikeStaff2, out var dbpId5) ? dbpId5 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_3"].Value = (playersMapRebind.TryGetValue(dbPlayer.DislikeStaff3, out var dbpId6) ? dbpId6 : -1).DbNullIf(-1);
+            command.Parameters["@liked_club_1"].Value = (clubsMapRebind.TryGetValue(dbPlayer.FavClub1, out var dbcId1) ? dbcId1 : -1).DbNullIf(-1);
+            command.Parameters["@liked_club_2"].Value = (clubsMapRebind.TryGetValue(dbPlayer.FavClub2, out var dbcId2) ? dbcId2 : -1).DbNullIf(-1);
+            command.Parameters["@liked_club_3"].Value = (clubsMapRebind.TryGetValue(dbPlayer.FavClub3, out var dbcId3) ? dbcId3 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_club_1"].Value = (clubsMapRebind.TryGetValue(dbPlayer.DislikeClub1, out var dbcId4) ? dbcId4 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_club_2"].Value = (clubsMapRebind.TryGetValue(dbPlayer.DislikeClub2, out var dbcId5) ? dbcId5 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_club_3"].Value = (clubsMapRebind.TryGetValue(dbPlayer.DislikeClub3, out var dbcId6) ? dbcId6 : -1).DbNullIf(-1);
+            command.Parameters["@id"].Value = pMap.DbId;
             command.ExecuteNonQuery();
         }
     }
@@ -563,6 +635,7 @@ internal class DataImporter(Action<string> reportProgress)
             return;
         }
 
+        // remove when ready
         if (DateTime.Now.Year == 2025)
         {
             Console.WriteLine("Player imported");
