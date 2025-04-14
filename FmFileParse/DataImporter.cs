@@ -21,11 +21,11 @@ internal class DataImporter(Action<string> reportProgress)
     // only columns valuated during insertion
     private static readonly string[] PlayerTableColumns =
     [
-        // intrinsic
+        // standard
         "first_name", "last_name", "common_name", "date_of_birth", "right_foot", "left_foot",
         // nation related
         "nation_id", "secondary_nation_id", "caps", "international_goals",
-        // potential & reputation
+        // ability & reputation
         "ability", "potential_ability", "home_reputation", "current_reputation", "world_reputation",
         // club related
         "club_id", "value", "contract_expiration", "wage",
@@ -47,7 +47,7 @@ internal class DataImporter(Action<string> reportProgress)
         "anticipation_potential", "creativity_potential", "crossing_potential", "decisions_potential",
         "dribbling_potential", "finishing_potential", "handling_potential", "heading_potential",
         "long_shots_potential", "marking_potential", "off_the_ball_potential", "one_on_ones_potential",
-        "passing_potential", "positioning_potential", "reflexes_potential", "tacking_potential",
+        "passing_potential", "positioning_potential", "reflexes_potential", "tackling_potential",
         "penalties_potential", "throw_ins_potential"
     ];
 
@@ -109,7 +109,7 @@ internal class DataImporter(Action<string> reportProgress)
         (nameof(Player.Passing), "passing"),
         (nameof(Player.Positioning), "positioning"),
         (nameof(Player.Reflexes), "reflexes"),
-        (nameof(Player.Tackling), "tacking"),
+        (nameof(Player.Tackling), "tackling"),
         (nameof(Player.Penalties), "penalties"),
         (nameof(Player.ThrowIns), "throw_ins")
     ];
@@ -589,8 +589,7 @@ internal class DataImporter(Action<string> reportProgress)
             )
         };
 
-        var countPlayersImported = 0;
-        CrawlPlayers(dbPlayers, 0, keyFuncs, saveFilesPlayers, collectedDbIdMap, command, ref countPlayersImported);
+        CrawlPlayers(dbPlayers, 0, keyFuncs, saveFilesPlayers, collectedDbIdMap, command);
 
         return collectedDbIdMap;
     }
@@ -600,8 +599,7 @@ internal class DataImporter(Action<string> reportProgress)
         List<(Func<Player, object> keyFunc, IEqualityComparer<Player> keysComparer)> keyFuncs,
         Dictionary<int, List<Player>> saveFilesPlayers,
         List<SaveIdMapper> collectedDbIdMap,
-        MySqlCommand command,
-        ref int countPlayersImported)
+        MySqlCommand command)
     {
         var pGroups = sourceDbPlayers
             .GroupBy(keyFuncs[depth].keyFunc)
@@ -637,7 +635,7 @@ internal class DataImporter(Action<string> reportProgress)
                         playersFromSaves.Add(fileId, matchingSavePlayers[0]);
                     }
                 }
-                ImportPlayer(pList[0], playersFromSaves, collectedDbIdMap, saveFilesPlayers.Count, command, ref countPlayersImported);
+                ImportPlayer(pList[0], playersFromSaves, collectedDbIdMap, saveFilesPlayers.Count, command);
             }
             else
             {
@@ -648,7 +646,7 @@ internal class DataImporter(Action<string> reportProgress)
                 }
                 else
                 {
-                    CrawlPlayers(pList, nextDepth, keyFuncs, saveFilesPlayers, collectedDbIdMap, command, ref countPlayersImported);
+                    CrawlPlayers(pList, nextDepth, keyFuncs, saveFilesPlayers, collectedDbIdMap, command);
                 }
             }
         }
@@ -668,8 +666,7 @@ internal class DataImporter(Action<string> reportProgress)
         Dictionary<int, Player> savesPlayer,
         List<SaveIdMapper> collectedDbIdMap,
         int savesCount,
-        MySqlCommand command,
-        ref int countPlayersImported)
+        MySqlCommand command)
     {
         if (savesPlayer.Count / (decimal)savesCount < Settings.MinPlayerOccurencesRate)
         {
@@ -743,7 +740,7 @@ internal class DataImporter(Action<string> reportProgress)
             { "ability", GetSrcOrMaxOrAvg(x => x.CurrentAbility) },
             { "potential_ability", GetSrcOrMaxOrAvg(x => x.PotentialAbility) },
             { "home_reputation", GetSrcOrMaxOrAvg(x => x.HomeReputation) },
-            { "current_reputation", GetSrcOrMaxOrAvg(x => x.CurrentAbility) },
+            { "current_reputation", GetSrcOrMaxOrAvg(x => x.CurrentReputation) },
             { "world_reputation", GetSrcOrMaxOrAvg(x => x.WorldReputation) },
             // contract
             { "club_id", clubId.DbNullIf(-1) },
@@ -816,16 +813,18 @@ internal class DataImporter(Action<string> reportProgress)
         }
         command.ExecuteNonQuery();
 
+        var savesId = savesPlayer.ToDictionary(x => x.Key, x => x.Value.Id);
+        savesId.Add(0, dbPlayer.Id);
+
         var map = new SaveIdMapper
         {
             DbId = (int)command.LastInsertedId,
-            SaveId = savesPlayer.ToDictionary(x => x.Key, x => x.Value.Id)
+            SaveId = savesId
         };
 
         collectedDbIdMap.Add(map);
 
-        countPlayersImported++;
-        Console.WriteLine($"Importation of player: {dbPlayer.Fullname} ({countPlayersImported})");
+        Console.WriteLine($"Importation of player: {dbPlayer.Fullname} ({collectedDbIdMap.Count})");
     }
 
     #region reusable
