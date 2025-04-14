@@ -118,7 +118,7 @@ internal class DataImporter(Action<string> reportProgress)
             SetSaveFileReferences(clubCompetitions, nameof(ClubCompetition));
 
             clubs = ImportClubs(saveFilePaths, nations, clubCompetitions);
-            SetClubsInformation(clubs, saveFilePaths);
+            UpdatesRivalClubsOnClubs(clubs);
             SetSaveFileReferences(clubs, nameof(Club));
         }
 
@@ -339,10 +339,13 @@ internal class DataImporter(Action<string> reportProgress)
             "clubs",
             new (string, DbType, Func<Club, int, object>)[]
             {
-                ("name", DbType.String, (d, iFile) => d.Name),
-                ("long_name", DbType.String, (d, iFile) => d.LongName),
-                ("nation_id", DbType.Int32, (d, iFile) => GetMapDbId(nationsMapping, iFile, d.NationId).DbNullIf(-1)),
-                ("division_id", DbType.Int32, (d, iFile) => GetMapDbId(clubCompetitionsMapping, iFile, d.DivisionId).DbNullIf(-1))
+                ("name", DbType.String, (c, iFile) => c.Name),
+                ("long_name", DbType.String, (c, iFile) => c.LongName),
+                ("nation_id", DbType.Int32, (c, iFile) => GetMapDbId(nationsMapping, iFile, c.NationId).DbNullIf(-1)),
+                ("division_id", DbType.Int32, (c, iFile) => GetMapDbId(clubCompetitionsMapping, iFile, c.DivisionId).DbNullIf(-1)),
+                ("reputation", DbType.Int32, (c, iFile) => c.Reputation),
+                ("bank", DbType.Int32, (c, iFile) => c.Bank),
+                ("facilities", DbType.Int32, (c, iFile) => c.Facilities)
             },
             // note: the key here should be the same as the one used in 'DataFileLoaders.ManageDuplicateClubs'
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
@@ -446,104 +449,38 @@ internal class DataImporter(Action<string> reportProgress)
         }
     }
 
-    private void SetClubsInformation(List<SaveIdMapper> clubsMapping, string[] saveFilePaths)
+    private void UpdatesRivalClubsOnClubs(List<SaveIdMapper> clubsMapping)
     {
-        _reportProgress("Computes clubs aggregated information...");
+        _reportProgress("Updates rival clubs on clubs...");
 
         using var connection = _getConnection();
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "UPDATE clubs " +
-            "SET rival_club_1 = @rival_club_1, rival_club_2 = @rival_club_2, rival_club_3 = @rival_club_3, " +
-            "reputation = @reputation, bank = @bank, facilities = @facilities " +
+            "SET rival_club_1 = @rival_club_1, rival_club_2 = @rival_club_2, rival_club_3 = @rival_club_3 " +
             "WHERE id = @id";
         command.SetParameter("rival_club_1", DbType.Int32);
         command.SetParameter("rival_club_2", DbType.Int32);
         command.SetParameter("rival_club_3", DbType.Int32);
-        command.SetParameter("reputation", DbType.Int32);
-        command.SetParameter("bank", DbType.Int32);
-        command.SetParameter("facilities", DbType.Int32);
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
-
-        void AddIfMatch(List<int> dbIdList, int saveId, int fileIndex)
-        {
-            var dbId = GetMapDbId(clubsMapping, fileIndex, saveId);
-            if (dbId >= 0)
-            {
-                dbIdList.Add(dbId);
-            }
-        }
-
-        object MaxOrAvgOrNull(List<int> source, int count, bool isId)
-        {
-            if (source.Count == 0)
-            {
-                return DBNull.Value;
-            }
-
-            var group = source.GetMaxOccurence(x => x);
-            return group.Count() >= Settings.MinValueOccurenceRate * count
-                || (isId && source.Count == count)
-                ? group.Key
-                : !isId
-                    ? (int)Math.Round(source.Average())
-                    : DBNull.Value;
-        }
 
         var clubCount = 0;
         foreach (var clubIdMap in clubsMapping)
         {
-            var keysCount = clubIdMap.SaveId.Keys.Count;
-
-            var rivalClub1List = new List<int>(keysCount);
-            var rivalClub2List = new List<int>(keysCount);
-            var rivalClub3List = new List<int>(keysCount);
-            var reputationList = new List<int>(keysCount);
-            var facilitiesList = new List<int>(keysCount);
-            var bankList = new List<int>(keysCount);
-
-            foreach (var fileId in clubIdMap.SaveId.Keys)
-            {
-                if (fileId == 0)
-                {
-                    continue;
-                }
-
-                var club = GetSaveGameDataFromCache(saveFilePaths[fileId - 1])
-                    .Clubs[clubIdMap.SaveId[fileId]];
-
-                reputationList.Add(club.Reputation);
-                facilitiesList.Add(club.Facilities);
-                bankList.Add(club.Bank);
-
-                AddIfMatch(rivalClub1List, club.RivalClub1, fileId);
-                AddIfMatch(rivalClub2List, club.RivalClub2, fileId);
-                AddIfMatch(rivalClub3List, club.RivalClub3, fileId);
-            }
-
             var dbClubs = GetDbFileDataFromCache().Clubs;
             var dbClub = dbClubs[clubIdMap.SaveId[0]];
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
             command.Parameters["@rival_club_1"].Value = dbClubs.TryGetValue(dbClub.RivalClub1, out var value1)
                 ? value1.Id
-                : MaxOrAvgOrNull(rivalClub1List, keysCount, true);
+                : DBNull.Value;
             command.Parameters["@rival_club_2"].Value = dbClubs.TryGetValue(dbClub.RivalClub2, out var value2)
                 ? value2.Id
-                : MaxOrAvgOrNull(rivalClub2List, keysCount, true);
+                : DBNull.Value;
             command.Parameters["@rival_club_3"].Value = dbClubs.TryGetValue(dbClub.RivalClub3, out var value3)
                 ? value3.Id
-                : MaxOrAvgOrNull(rivalClub3List, keysCount, true);
-            command.Parameters["@bank"].Value = dbClub.Bank == 0
-                ? MaxOrAvgOrNull(bankList, keysCount, false)
-                : dbClub.Bank;
-            command.Parameters["@facilities"].Value = dbClub.Facilities <= 0
-                ? MaxOrAvgOrNull(facilitiesList, keysCount, false)
-                : dbClub.Facilities;
-            command.Parameters["@reputation"].Value = dbClub.Reputation <= 0
-                ? MaxOrAvgOrNull(reputationList, keysCount, false)
-                : dbClub.Reputation;
+                : DBNull.Value;
             command.ExecuteNonQuery();
 
             clubCount++;
