@@ -17,6 +17,8 @@ if (!int.TryParse(rawChoice, out var choice) || (choice != 0 && choice != 1 && c
     return;
 }
 
+var startDate = DateTime.Now;
+
 var saveFiles = Directory.GetFiles(Settings.SaveFilesPath, "*.sav");
 
 if (choice == 0)
@@ -40,7 +42,9 @@ else
     importer.ProceedToImport(saveFiles, choice == 2);
 }
 
-Console.WriteLine("Process is done; Press any key to close.");
+var elapsedSeconds = (int)Math.Round((DateTime.Now - startDate).TotalSeconds);
+
+Console.WriteLine($"Process is done (in {elapsedSeconds} seconds); Press any key to close.");
 Console.ReadKey();
 
 static void DescribePlayer(BaseFileData data, Func<Player, bool> criteria)

@@ -489,22 +489,19 @@ internal class DataImporter(Action<string> reportProgress)
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
 
+        var clubsMapRebind = clubsMapping
+            .Where(x => x.SaveId.ContainsKey(0))
+            .ToDictionary(x => x.SaveId[0], x => x.DbId);
+
         var clubCount = 0;
         foreach (var clubIdMap in clubsMapping)
         {
-            var dbClubs = GetDbFileDataFromCache().Clubs;
-            var dbClub = dbClubs[clubIdMap.SaveId[0]];
+            var dbClub = GetDbFileDataFromCache().Clubs[clubIdMap.SaveId[0]];
 
             command.Parameters["@id"].Value = clubIdMap.DbId;
-            command.Parameters["@rival_club_1"].Value = dbClubs.TryGetValue(dbClub.RivalClub1, out var value1)
-                ? value1.Id
-                : DBNull.Value;
-            command.Parameters["@rival_club_2"].Value = dbClubs.TryGetValue(dbClub.RivalClub2, out var value2)
-                ? value2.Id
-                : DBNull.Value;
-            command.Parameters["@rival_club_3"].Value = dbClubs.TryGetValue(dbClub.RivalClub3, out var value3)
-                ? value3.Id
-                : DBNull.Value;
+            command.Parameters["@rival_club_1"].Value = (clubsMapRebind.TryGetValue(dbClub.RivalClub1, out var value1) ? value1 : -1).DbNullIf(-1);
+            command.Parameters["@rival_club_2"].Value = (clubsMapRebind.TryGetValue(dbClub.RivalClub2, out var value2) ? value2 : -1).DbNullIf(-1);
+            command.Parameters["@rival_club_3"].Value = (clubsMapRebind.TryGetValue(dbClub.RivalClub3, out var value3) ? value3 : -1).DbNullIf(-1);
             command.ExecuteNonQuery();
 
             clubCount++;
