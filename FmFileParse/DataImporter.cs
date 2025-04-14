@@ -565,12 +565,28 @@ internal class DataImporter(Action<string> reportProgress)
             }
         }
 
-        var keyFuncs = new List<Func<Player, object>>
+        var keyFuncs = new List<(Func<Player, object> keyFunc, IEqualityComparer<Player> keysComparer)>
         {
-            x => (x.CommonName, x.LastName, x.FirstName),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth),
-            x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth, x.ClubId)
+            (
+                x => (x.CommonName, x.LastName, x.FirstName),
+                EqualityComparer<Player>.Create((pDb, pSave) =>
+                    (pDb!.CommonName, pDb.LastName, pDb.FirstName) == (pSave!.CommonName, pSave.LastName, pSave.FirstName))
+            ),
+            (
+                x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth),
+                EqualityComparer<Player>.Create((pDb, pSave) =>
+                    (pDb!.CommonName, pDb.LastName, pDb.FirstName, pDb.ActualYearOfBirth) == (pSave!.CommonName, pSave.LastName, pSave.FirstName, pSave.ActualYearOfBirth))
+            ),
+            (
+                x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth),
+                EqualityComparer<Player>.Create((pDb, pSave) =>
+                    (pDb!.CommonName, pDb.LastName, pDb.FirstName, pDb.ActualYearOfBirth, pDb.DateOfBirth) == (pSave!.CommonName, pSave.LastName, pSave.FirstName, pSave.ActualYearOfBirth, pSave.DateOfBirth))
+            ),
+            (
+                x => (x.CommonName, x.LastName, x.FirstName, x.ActualYearOfBirth, x.DateOfBirth, x.ClubId),
+                EqualityComparer<Player>.Create((pDb, pSave) =>
+                    (pDb!.CommonName, pDb.LastName, pDb.FirstName, pDb.ActualYearOfBirth, pDb.DateOfBirth, pDb.ClubId) == (pSave!.CommonName, pSave.LastName, pSave.FirstName, pSave.ActualYearOfBirth, pSave.DateOfBirth, pSave.ClubId))
+            )
         };
 
         var countPlayersImported = 0;
@@ -581,17 +597,17 @@ internal class DataImporter(Action<string> reportProgress)
 
     private static void CrawlPlayers(List<Player> sourceDbPlayers,
         int depth,
-        List<Func<Player, object>> keyFuncs,
+        List<(Func<Player, object> keyFunc, IEqualityComparer<Player> keysComparer)> keyFuncs,
         Dictionary<int, List<Player>> saveFilesPlayers,
         List<SaveIdMapper> collectedDbIdMap,
         MySqlCommand command,
         ref int countPlayersImported)
     {
         var pGroups = sourceDbPlayers
-            .GroupBy(keyFuncs[depth])
-            .Select(x => (x.Key, x.ToList()))
+            .GroupBy(keyFuncs[depth].keyFunc)
+            .Select(x => x.ToList())
             .ToList();
-        foreach (var (pKey, pList) in pGroups)
+        foreach (var pList in pGroups)
         {
             if (pList.Count == 1)
             {
@@ -599,7 +615,7 @@ internal class DataImporter(Action<string> reportProgress)
                 for (var fileId = 1; fileId <= saveFilesPlayers.Count; fileId++)
                 {
                     var matchingSavePlayers = saveFilesPlayers[fileId]
-                        .Where(x => keyFuncs[depth].Equals(pKey))
+                        .Where(x => keyFuncs[depth].keysComparer.Equals(x, pList[0]))
                         .ToList();
 
                     if (matchingSavePlayers.Count > 1)
@@ -697,7 +713,7 @@ internal class DataImporter(Action<string> reportProgress)
         DateTime? endOfContract = null;
         if (clubId != -1)
         {
-            if (clubFromSave && (dbPlayer.Contract?.ContractEndDate).HasValue && dbPlayer.Contract!.ContractEndDate!.Value.Year != 1900)
+            if (!clubFromSave && (dbPlayer.Contract?.ContractEndDate).HasValue && dbPlayer.Contract!.ContractEndDate!.Value.Year != 1900)
             {
                 endOfContract = dbPlayer.Contract.ContractEndDate.Value;
             }
