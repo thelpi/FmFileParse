@@ -29,7 +29,7 @@ internal class DataImporter(Action<string> reportProgress)
         // club related
         "club_id", "value", "contract_expiration", "wage",
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
-        "future_club_id", "transfer_status", "squad_status",
+        "transfer_status", "squad_status",
         // positions
         "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
         "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
@@ -76,8 +76,7 @@ internal class DataImporter(Action<string> reportProgress)
         ("clubs", "rival_club_3", "clubs", "id"),
         ("players", "nation_id", "nations", "id"),
         ("players", "secondary_nation_id", "nations", "id"),
-        ("players", "club_id", "clubs", "id"),
-        ("players", "future_club_id", "clubs", "id")
+        ("players", "club_id", "clubs", "id")
     ];
 
     private readonly Func<MySqlConnection> _getConnection = () => new MySqlConnection(Settings.ConnString);
@@ -551,10 +550,6 @@ internal class DataImporter(Action<string> reportProgress)
         player.ClubId = GetRebindMapDbId(clubsMapRebind, fileId, player.ClubId);
         player.NationId = GetRebindMapDbId(nationsMapRebind, fileId, player.NationId);
         player.SecondaryNationId = GetRebindMapDbId(nationsMapRebind, fileId, player.SecondaryNationId);
-        if (player.Contract is not null)
-        {
-            player.Contract.FutureClubId = GetRebindMapDbId(clubsMapRebind, fileId, player.Contract.FutureClubId);
-        }
     }
 
     private static void ImportPlayer(Player dbPlayer,
@@ -633,7 +628,6 @@ internal class DataImporter(Action<string> reportProgress)
             { "non_play_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPlayingReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
             { "non_promotion_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPromotionReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
             { "relegation_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.RelegationReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
-            { "future_club_id", clubId == -1 ? DBNull.Value : savesValues.GetMaxOccurence(x => x.Contract?.FutureClubId ?? -1).Key.DbNullIf(-1) },
             { "transfer_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.TransferStatus).Key).DbNullIf() },
             { "squad_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.SquadStatus).Key).DbNullIf() },
             // positioning
