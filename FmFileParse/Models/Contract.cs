@@ -34,9 +34,6 @@ public class Contract
     [DataPosition(79)]
     public SquadStatus? SquadStatus { get; set; }
 
-    [DataPosition(73)]
-    public bool LeavingOnBosman { get; set; }
-
     [DataPosition(74)]
     public int FutureClubId { get; set; }
 }

@@ -18,16 +18,6 @@ internal class DataImporter(Action<string> reportProgress)
         "date_of_birth", "contract_expiration"
     ];
 
-    private static readonly string[] PlayerTableBoolColumns =
-    [
-        "leaving_on_bosman"
-    ];
-
-    private static readonly string[] PlayerTableNoAvgColumns =
-    [
-        "club_id", "nation_id", "secondary_nation_id", "future_club_id", "transfer_status", "squad_status"
-    ];
-
     private static readonly string[] PlayerTableColumns =
     [
         // intrinsic
@@ -39,7 +29,7 @@ internal class DataImporter(Action<string> reportProgress)
         // club related
         "club_id", "value", "contract_expiration", "wage",
         "manager_job_rel", "min_fee_rel", "non_play_rel", "non_promotion_rel", "relegation_rel",
-        "leaving_on_bosman", "future_club_id", "transfer_status", "squad_status",
+        "future_club_id", "transfer_status", "squad_status",
         // positions
         "pos_goalkeeper", "pos_sweeper", "pos_defender", "pos_defensive_midfielder", "pos_midfielder",
         "pos_attacking_midfielder", "pos_forward", "pos_wingback", "pos_free_role",
@@ -123,7 +113,7 @@ internal class DataImporter(Action<string> reportProgress)
         }
 
         var players = ImportPlayers(saveFilePaths, nations, clubs);
-        UpdateStaffOnClubs(clubs, players, saveFilePaths);
+        UpdateStaffPreferencesOnClubs(clubs, players);
 
         CreateIndexesAndForeignKeys(playerOnly);
     }
@@ -351,7 +341,7 @@ internal class DataImporter(Action<string> reportProgress)
             (d, iFile) => string.Concat(d.LongName, ";", GetMapDbId(nationsMapping, iFile, d.NationId)));
     }
 
-    private void UpdateStaffOnClubs(List<SaveIdMapper> clubsMapping, List<SaveIdMapper> playersMapping, string[] saveFilePaths)
+    private void UpdateStaffPreferencesOnClubs(List<SaveIdMapper> clubsMapping, List<SaveIdMapper> playersMapping)
     {
         _reportProgress("Updates club's staff information...");
 
@@ -371,80 +361,21 @@ internal class DataImporter(Action<string> reportProgress)
         command.SetParameter("id", DbType.Int32);
         command.Prepare();
 
-        // TODO: it's sub-optimal, mapping logic on save files is not required if db file has a proper staff id
+        var dbMapPlayers = playersMapping
+            .Where(x => x.SaveId.ContainsKey(0))
+            .ToDictionary(x => x.SaveId[0], x => x.DbId);
 
-        var keysByPlayer = new Dictionary<int, List<int[]>>(clubsMapping.Count);
-
-        foreach (var cMap in clubsMapping)
+        foreach (var clubMap in clubsMapping)
         {
-            foreach (var fileId in cMap.SaveId.Keys)
-            {
-                if (fileId == 0)
-                {
-                    continue;
-                }
+            var dbClub = GetDbFileDataFromCache().Clubs[clubMap.SaveId[0]];
 
-                if (!keysByPlayer.TryGetValue(cMap.DbId, out var keys))
-                {
-                    keys = new List<int[]>(saveFilePaths.Length + 1);
-                    keysByPlayer.Add(cMap.DbId, keys);
-                }
-
-                var club = GetSaveGameDataFromCache(saveFilePaths[fileId - 1]).Clubs[cMap.SaveId[fileId]];
-
-                keys.Add(
-                [
-                    GetMapDbId(playersMapping, fileId, club.LikedStaff1),
-                    GetMapDbId(playersMapping, fileId, club.LikedStaff2),
-                    GetMapDbId(playersMapping, fileId, club.LikedStaff3),
-                    GetMapDbId(playersMapping, fileId, club.DislikedStaff1),
-                    GetMapDbId(playersMapping, fileId, club.DislikedStaff2),
-                    GetMapDbId(playersMapping, fileId, club.DislikedStaff3),
-                ]);
-            }
-        }
-
-        var dbPropGetter = new List<Func<int, int>>
-        {
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff1,
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff2,
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].LikedStaff3,
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff1,
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff2,
-            dbfId => GetDbFileDataFromCache().Clubs[dbfId].DislikedStaff3,
-        };
-
-        foreach (var pid in keysByPlayer.Keys)
-        {
-            var maxxedOccurences = new int[6];
-            for (var i = 0; i < 6; i++)
-            {
-                maxxedOccurences[i] = keysByPlayer[pid].GetMaxOccurence(x => x[i]).Key;
-            }
-
-            var dbStaff = dbPropGetter.Select(x => -1).ToArray();
-            if (clubsMapping.First(x => x.DbId == pid).SaveId.TryGetValue(0, out var dbFileId))
-            {
-                for (var i = 0; i < dbPropGetter.Count; i++)
-                {
-                    var localStaffId = GetMapDbId(playersMapping, 0, dbPropGetter[i](dbFileId));
-                    if (localStaffId >= 0)
-                    {
-                        dbStaff[i] = localStaffId;
-                    }
-                }
-            }
-
-            object GetFinalStaffDbId(int index)
-                => dbStaff[0] >= 0 ? dbStaff[0] : maxxedOccurences[0].DbNullIf(-1);
-
-            command.Parameters["@liked_staff_1"].Value = GetFinalStaffDbId(0);
-            command.Parameters["@liked_staff_2"].Value = GetFinalStaffDbId(1);
-            command.Parameters["@liked_staff_3"].Value = GetFinalStaffDbId(2);
-            command.Parameters["@disliked_staff_1"].Value = GetFinalStaffDbId(3);
-            command.Parameters["@disliked_staff_2"].Value = GetFinalStaffDbId(4);
-            command.Parameters["@disliked_staff_3"].Value = GetFinalStaffDbId(5);
-            command.Parameters["@id"].Value = pid;
+            command.Parameters["@liked_staff_1"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff1, out var dbId1) ? dbId1 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_2"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff2, out var dbId2) ? dbId2 : -1).DbNullIf(-1);
+            command.Parameters["@liked_staff_3"].Value = (dbMapPlayers.TryGetValue(dbClub.LikedStaff3, out var dbId3) ? dbId3 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_1"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff1, out var dbId4) ? dbId4 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_2"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff2, out var dbId5) ? dbId5 : -1).DbNullIf(-1);
+            command.Parameters["@disliked_staff_3"].Value = (dbMapPlayers.TryGetValue(dbClub.DislikedStaff3, out var dbId6) ? dbId6 : -1).DbNullIf(-1);
+            command.Parameters["@id"].Value = clubMap.DbId;
             command.ExecuteNonQuery();
         }
     }
@@ -702,7 +633,6 @@ internal class DataImporter(Action<string> reportProgress)
             { "non_play_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPlayingReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
             { "non_promotion_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.NonPromotionReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
             { "relegation_rel", clubId == -1 ? 0 : Avg(x => (x.Contract?.RelegationReleaseClause ?? false) ? x.Contract.ReleaseClauseValue : 0) },
-            { "leaving_on_bosman", clubId != -1 && savesValues.GetMaxOccurence(x => x.Contract?.LeavingOnBosman ?? false).Key },
             { "future_club_id", clubId == -1 ? DBNull.Value : savesValues.GetMaxOccurence(x => x.Contract?.FutureClubId ?? -1).Key.DbNullIf(-1) },
             { "transfer_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.TransferStatus).Key).DbNullIf() },
             { "squad_status", clubId == -1 ? DBNull.Value : ((int?)savesValues.GetMaxOccurence(x => x.Contract?.SquadStatus).Key).DbNullIf() },
@@ -927,9 +857,7 @@ internal class DataImporter(Action<string> reportProgress)
             ? DbType.String
             : (PlayerTableDateColumns.Contains(column)
                 ? DbType.Date
-                : (PlayerTableBoolColumns.Contains(column)
-                    ? DbType.Boolean
-                    : DbType.Int32));
+                : DbType.Int32);
     }
 
     #endregion

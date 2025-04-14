@@ -1,1 +1,2 @@
 ﻿Add favorites info on "players" SQL table
+Import coaches
